@@ -1,0 +1,14 @@
+import type { ReactNode } from "react";
+import { Header } from "@/components/layout/Header";
+
+// Shell that every dashboard page renders inside: header + scrollable content area.
+export function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="mx-auto max-w-[1440px] px-6 py-6">
+        <div className="flex flex-col gap-6">{children}</div>
+      </main>
+    </div>
+  );
+}
