@@ -45,14 +45,19 @@ export function Header({ host = defaultHostInfo, onLogout }: HeaderProps) {
           </div>
         </div>
 
-        <Separator orientation="vertical" className="hidden h-6 md:block" />
+        <Separator orientation="vertical" className="hidden h-6 lg:block" />
 
-        {/* Host + connection status */}
-        <div className="hidden flex-1 items-center gap-6 md:flex">
+        {/* Host + connection status — progressively revealed so it never has
+            to squeeze into a width it doesn't fit: hostname+status appear at
+            lg (laptop), OS/last-sync/latency only once xl (desktop/large
+            screens) confirms there's room — identical to today at >=1280px. */}
+        <div className="hidden flex-1 items-center gap-4 lg:flex xl:gap-6">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Server aria-hidden="true" className="h-3.5 w-3.5" />
-            <span className="font-medium text-foreground">{host.hostname}</span>
-            <span className="text-muted-foreground">· {host.os}</span>
+            <Server aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+            <span className="max-w-[140px] truncate font-medium text-foreground">
+              {host.hostname}
+            </span>
+            <span className="hidden text-muted-foreground xl:inline">· {host.os}</span>
           </div>
 
           <StatusIndicator
@@ -60,11 +65,11 @@ export function Header({ host = defaultHostInfo, onLogout }: HeaderProps) {
             label={CONNECTION_LABEL[host.connectionStatus]}
           />
 
-          <div className="text-xs text-muted-foreground">
+          <div className="hidden text-xs text-muted-foreground xl:block">
             Last sync <span className="text-foreground">{host.lastSyncedAt}</span>
           </div>
 
-          <div className="text-xs text-muted-foreground">
+          <div className="hidden text-xs text-muted-foreground xl:block">
             Latency <span className="text-foreground">{host.latencyMs}ms</span>
           </div>
         </div>

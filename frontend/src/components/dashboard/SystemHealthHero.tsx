@@ -29,7 +29,12 @@ export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthH
 
   return (
     <Card className="p-6 shadow-soft">
-      <div className="flex flex-col items-center gap-8 md:flex-row md:items-center">
+      {/* Row layout only from lg (laptop) up — below that, the ring +
+          separator + details + "monitored" badge don't reliably fit on one
+          line at tablet widths, so it stays stacked (which needs only the
+          width of its widest child, never causing overflow). Identical to
+          today at >=1024px since that's already past the old md breakpoint. */}
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center">
         {/* Score ring — the page's hero figure, sized to dominate the card */}
         <div
           className="relative flex h-36 w-36 shrink-0 items-center justify-center"
@@ -58,14 +63,14 @@ export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthH
             />
           </svg>
           <div className="absolute flex flex-col items-center" aria-hidden="true">
-            <span className="text-4xl font-bold leading-none tracking-tight text-foreground">
+            <span className="text-3xl font-bold leading-none tracking-tight text-foreground sm:text-4xl">
               {health.score}
             </span>
             <span className="mt-1.5 text-2xs text-muted-foreground">/ 100</span>
           </div>
         </div>
 
-        <Separator orientation="vertical" className="hidden h-24 md:block" />
+        <Separator orientation="vertical" className="hidden h-24 lg:block" />
 
         {/* Details */}
         <div className="flex flex-1 flex-col gap-4">
@@ -93,7 +98,7 @@ export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthH
           </div>
         </div>
 
-        <div className="hidden shrink-0 flex-col items-end gap-1 self-start md:flex">
+        <div className="hidden shrink-0 flex-col items-end gap-1 self-start lg:flex">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-success" />
             Monitored continuously
