@@ -1,6 +1,7 @@
 import { BrainCircuit, Clock, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Separator } from "@/components/ui/separator";
 import { systemHealth as defaultSystemHealth } from "@/data/placeholder";
 import { cn } from "@/lib/utils";
@@ -75,9 +76,7 @@ export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthH
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex items-center gap-3 rounded-md border border-border bg-surface/60 px-4 py-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-primary/10 text-primary">
-                <BrainCircuit aria-hidden="true" className="h-4 w-4" />
-              </div>
+              <IconTile icon={BrainCircuit} tone="primary" size="md" />
               <div>
                 <p className="text-2xs text-muted-foreground">AI Status</p>
                 <p className="text-sm font-medium text-foreground">{health.aiStatus}</p>
@@ -85,9 +84,7 @@ export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthH
             </div>
 
             <div className="flex items-center gap-3 rounded-md border border-border bg-surface/60 px-4 py-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-success/10 text-success">
-                <Clock aria-hidden="true" className="h-4 w-4" />
-              </div>
+              <IconTile icon={Clock} tone="success" size="md" />
               <div>
                 <p className="text-2xs text-muted-foreground">Uptime</p>
                 <p className="text-sm font-medium text-foreground">{health.uptime}</p>

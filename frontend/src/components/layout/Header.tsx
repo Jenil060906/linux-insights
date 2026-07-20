@@ -2,16 +2,21 @@ import { Activity, Bell, Server } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { StatusIndicator, type StatusTone } from "@/components/ui/status-indicator";
 import { Clock } from "@/components/layout/Clock";
-import { StatusDot } from "@/components/common/StatusDot";
 import { hostInfo as defaultHostInfo } from "@/data/placeholder";
-import { cn } from "@/lib/utils";
 import type { HostInfo, ConnectionStatus } from "@/types/system";
 
 const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
   connected: "Connected",
   degraded: "Degraded",
   disconnected: "Disconnected",
+};
+
+const CONNECTION_TONE: Record<ConnectionStatus, StatusTone> = {
+  connected: "success",
+  degraded: "warning",
+  disconnected: "danger",
 };
 
 interface HeaderProps {
@@ -48,19 +53,10 @@ export function Header({ host = defaultHostInfo }: HeaderProps) {
             <span className="text-muted-foreground">· {host.os}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs">
-            <StatusDot status={host.connectionStatus} />
-            <span
-              className={cn(
-                "font-medium",
-                host.connectionStatus === "connected" && "text-success",
-                host.connectionStatus === "degraded" && "text-warning",
-                host.connectionStatus === "disconnected" && "text-danger"
-              )}
-            >
-              {CONNECTION_LABEL[host.connectionStatus]}
-            </span>
-          </div>
+          <StatusIndicator
+            tone={CONNECTION_TONE[host.connectionStatus]}
+            label={CONNECTION_LABEL[host.connectionStatus]}
+          />
 
           <div className="text-xs text-muted-foreground">
             Last sync <span className="text-foreground">{host.lastSyncedAt}</span>

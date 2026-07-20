@@ -1,6 +1,8 @@
 // Shared domain types for the Linux Insight dashboard shell.
 // Phase 1 only — these describe placeholder data shapes, not live telemetry.
 
+import type { LucideIcon } from "lucide-react";
+
 export type ConnectionStatus = "connected" | "degraded" | "disconnected";
 
 export type TrendDirection = "up" | "down" | "flat";
@@ -31,7 +33,7 @@ export interface MetricCardData {
   trend: TrendDirection;
   trendValue: string;
   sparkline: number[];
-  icon: MetricKey;
+  icon: LucideIcon;
 }
 
 export interface TimeSeriesPoint {

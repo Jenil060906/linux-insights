@@ -1,6 +1,7 @@
 import { Gauge, PiggyBank, ServerCog, ShieldAlert, Sparkles, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
+import { IconTile } from "@/components/ui/icon-tile";
 import { aiInsights as defaultAiInsights } from "@/data/placeholder";
 import type { AIInsight, InsightCategory, InsightImpact } from "@/types/system";
 
@@ -33,15 +34,12 @@ export function AIInsightsSection({ insights = defaultAiInsights }: AIInsightsSe
         {insights.map((insight) => {
           const category = CATEGORY_CONFIG[insight.category];
           const impact = IMPACT_BADGE[insight.impact];
-          const CategoryIcon = category.icon;
           return (
             <div
               key={insight.id}
               className="flex items-start gap-3 rounded-md border border-border bg-surface/50 px-3 py-2.5 transition-colors hover:bg-surface/80"
             >
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-border bg-surface text-primary">
-                <CategoryIcon aria-hidden="true" className="h-3.5 w-3.5" />
-              </div>
+              <IconTile icon={category.icon} tone="accent" size="sm" className="mt-0.5" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-medium text-foreground">{insight.title}</p>

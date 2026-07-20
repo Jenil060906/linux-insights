@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { cn } from "@/lib/utils";
 
 interface SectionHeaderProps {
@@ -20,11 +21,7 @@ export function SectionHeader({
   return (
     <div className={cn("flex items-center justify-between gap-4", className)}>
       <div className="flex items-center gap-2.5">
-        {Icon && (
-          <div className="flex h-7 w-7 items-center justify-center rounded-sm border border-border bg-surface text-muted-foreground">
-            <Icon aria-hidden="true" className="h-4 w-4" />
-          </div>
-        )}
+        {Icon && <IconTile icon={Icon} tone="neutral" size="sm" />}
         <div>
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           {description && (
