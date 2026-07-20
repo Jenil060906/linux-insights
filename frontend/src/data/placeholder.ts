@@ -1,6 +1,7 @@
 // Static placeholder data for the Phase 1 dashboard shell.
 // No API calls, no live values — swapped for real telemetry in a later phase.
 
+import { Cpu, HardDrive, MemoryStick, Wifi } from "lucide-react";
 import type {
   AIInsight,
   AlertItem,
@@ -38,7 +39,7 @@ export const metricCards: MetricCardData[] = [
     trend: "up",
     trendValue: "+3.2%",
     sparkline: [30, 34, 32, 38, 36, 40, 42],
-    icon: "cpu",
+    icon: Cpu,
   },
   {
     id: "ram",
@@ -48,7 +49,7 @@ export const metricCards: MetricCardData[] = [
     trend: "flat",
     trendValue: "+0.1%",
     sparkline: [40, 42, 41, 43, 42, 42, 43],
-    icon: "ram",
+    icon: MemoryStick,
   },
   {
     id: "disk",
@@ -58,7 +59,7 @@ export const metricCards: MetricCardData[] = [
     trend: "up",
     trendValue: "+0.8%",
     sparkline: [38, 39, 39, 40, 41, 41, 42],
-    icon: "disk",
+    icon: HardDrive,
   },
   {
     id: "network",
@@ -68,7 +69,7 @@ export const metricCards: MetricCardData[] = [
     trend: "down",
     trendValue: "-5.4%",
     sparkline: [22, 26, 24, 20, 18, 16, 15],
-    icon: "network",
+    icon: Wifi,
   },
 ];
 
