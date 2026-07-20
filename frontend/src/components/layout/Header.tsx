@@ -1,4 +1,4 @@
-import { Activity, Bell, Server } from "lucide-react";
+import { Activity, Bell, LogOut, Server } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,10 +21,12 @@ const CONNECTION_TONE: Record<ConnectionStatus, StatusTone> = {
 
 interface HeaderProps {
   host?: HostInfo;
+  /** Renders a Logout button when provided — omitted, the button doesn't appear. */
+  onLogout?: () => void;
 }
 
 // Top-level app bar: identity, host status, and user actions.
-export function Header({ host = defaultHostInfo }: HeaderProps) {
+export function Header({ host = defaultHostInfo, onLogout }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="flex h-14 items-center justify-between gap-4 px-6">
@@ -81,6 +83,12 @@ export function Header({ host = defaultHostInfo }: HeaderProps) {
           <Avatar className="h-8 w-8">
             <AvatarFallback aria-label="User: JV">JV</AvatarFallback>
           </Avatar>
+
+          {onLogout && (
+            <Button variant="ghost" size="icon" aria-label="Log out" onClick={onLogout}>
+              <LogOut aria-hidden="true" className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </header>

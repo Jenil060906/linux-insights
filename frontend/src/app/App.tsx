@@ -1,9 +1,9 @@
 import { MotionConfig } from "framer-motion";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/features/login/LoginPage";
-import { getSelectedServer } from "@/features/login/lib/selectedServer";
+import { clearSelectedServer, getSelectedServer } from "@/features/login/lib/selectedServer";
 import type { HostInfo } from "@/types/system";
 
 // "/" — login/server-selection. If a server was already chosen (localStorage
@@ -20,6 +20,7 @@ function LoginRoute() {
 // into the dashboard's own HostInfo shape here, at the route boundary —
 // this is the one place the two features touch.
 function DashboardRoute() {
+  const navigate = useNavigate();
   const selected = getSelectedServer();
   if (!selected) {
     return <Navigate to="/" replace />;
@@ -33,8 +34,13 @@ function DashboardRoute() {
     latencyMs: 14,
   };
 
+  function handleLogout() {
+    clearSelectedServer();
+    navigate("/", { replace: true });
+  }
+
   return (
-    <DashboardLayout host={host}>
+    <DashboardLayout host={host} onLogout={handleLogout}>
       <DashboardPage />
     </DashboardLayout>
   );
