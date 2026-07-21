@@ -5,7 +5,7 @@ import { Chip } from "@/components/common/Chip";
 import { Badge } from "@/components/ui/badge";
 import { ChartSkeleton } from "@/charts/ChartSkeleton";
 import { chartTheme } from "@/charts/theme";
-import { liveMonitoringSeries } from "@/data/placeholder";
+import { getLiveMonitoringSeries } from "@/mock/metrics";
 import type { MetricKey, TimeSeriesPoint } from "@/types/system";
 
 // Recharts (+ d3 deps) is the heaviest dependency in the app — split it into its
@@ -34,7 +34,7 @@ interface LiveMonitoringSectionProps {
 
 // Single-series usage chart, switchable by metric. Static placeholder time series —
 // no live polling or backend connection.
-export function LiveMonitoringSection({ series = liveMonitoringSeries }: LiveMonitoringSectionProps) {
+export function LiveMonitoringSection({ series = getLiveMonitoringSeries() }: LiveMonitoringSectionProps) {
   const [active, setActive] = useState<MetricKey>("cpu");
   const activeTab = METRIC_TABS.find((tab) => tab.key === active)!;
   const activeData = series[active];

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { StatusIndicator, type StatusTone } from "@/components/ui/status-indicator";
 import { Clock } from "@/components/layout/Clock";
-import { hostInfo as defaultHostInfo } from "@/data/placeholder";
+import { getHostInfo } from "@/mock/server";
 import type { HostInfo, ConnectionStatus } from "@/types/system";
 
 const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
@@ -26,7 +26,7 @@ interface HeaderProps {
 }
 
 // Top-level app bar: identity, host status, and user actions.
-export function Header({ host = defaultHostInfo, onLogout }: HeaderProps) {
+export function Header({ host = getHostInfo(), onLogout }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="flex h-14 items-center justify-between gap-4 px-6">

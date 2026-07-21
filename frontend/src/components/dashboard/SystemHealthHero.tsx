@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
 import { Separator } from "@/components/ui/separator";
-import { systemHealth as defaultSystemHealth } from "@/data/placeholder";
+import { getSystemHealth } from "@/mock/server";
 import { cn } from "@/lib/utils";
 import type { HealthStatus, SystemHealth } from "@/types/system";
 
@@ -22,7 +22,7 @@ interface SystemHealthHeroProps {
 
 // Primary hero card summarizing overall system health at a glance.
 // Presentational — data flows in via props, defaulting to placeholder data.
-export function SystemHealthHero({ health = defaultSystemHealth }: SystemHealthHeroProps) {
+export function SystemHealthHero({ health = getSystemHealth() }: SystemHealthHeroProps) {
   const config = STATUS_CONFIG[health.status];
   const circumference = 2 * Math.PI * 42;
   const offset = circumference - (health.score / 100) * circumference;
