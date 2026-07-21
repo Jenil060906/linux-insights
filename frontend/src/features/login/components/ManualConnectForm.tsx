@@ -22,6 +22,7 @@ export function ManualConnectForm({ onConnect }: ManualConnectFormProps) {
   const nameId = useId();
   const ipId = useId();
   const portId = useId();
+  const advancedFieldsId = useId();
 
   const trimmedName = serverName.trim();
 
@@ -61,6 +62,7 @@ export function ManualConnectForm({ onConnect }: ManualConnectFormProps) {
           type="button"
           onClick={() => setAdvancedOpen((open) => !open)}
           aria-expanded={advancedOpen}
+          aria-controls={advancedFieldsId}
           className="flex w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Advanced
@@ -77,6 +79,7 @@ export function ManualConnectForm({ onConnect }: ManualConnectFormProps) {
           {advancedOpen && (
             <motion.div
               key="advanced-fields"
+              id={advancedFieldsId}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}

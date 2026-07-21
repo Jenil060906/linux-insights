@@ -7,16 +7,10 @@ import { Clock } from "@/components/layout/Clock";
 import { getHostInfo } from "@/mock/server";
 import type { HostInfo, ConnectionStatus } from "@/types/system";
 
-const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
-  connected: "Connected",
-  degraded: "Degraded",
-  disconnected: "Disconnected",
-};
-
-const CONNECTION_TONE: Record<ConnectionStatus, StatusTone> = {
-  connected: "success",
-  degraded: "warning",
-  disconnected: "danger",
+const CONNECTION_CONFIG: Record<ConnectionStatus, { label: string; tone: StatusTone }> = {
+  connected: { label: "Connected", tone: "success" },
+  degraded: { label: "Degraded", tone: "warning" },
+  disconnected: { label: "Disconnected", tone: "danger" },
 };
 
 interface HeaderProps {
@@ -27,6 +21,8 @@ interface HeaderProps {
 
 // Top-level app bar: identity, host status, and user actions.
 export function Header({ host = getHostInfo(), onLogout }: HeaderProps) {
+  const connection = CONNECTION_CONFIG[host.connectionStatus];
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <div className="flex h-14 items-center justify-between gap-4 px-6">
@@ -60,10 +56,7 @@ export function Header({ host = getHostInfo(), onLogout }: HeaderProps) {
             <span className="hidden text-muted-foreground xl:inline">· {host.os}</span>
           </div>
 
-          <StatusIndicator
-            tone={CONNECTION_TONE[host.connectionStatus]}
-            label={CONNECTION_LABEL[host.connectionStatus]}
-          />
+          <StatusIndicator tone={connection.tone} label={connection.label} />
 
           <div className="hidden text-xs text-muted-foreground xl:block">
             Last sync <span className="text-foreground">{host.lastSyncedAt}</span>

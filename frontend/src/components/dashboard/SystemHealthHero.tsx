@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { BrainCircuit, Clock, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,11 @@ interface SystemHealthHeroProps {
 
 // Primary hero card summarizing overall system health at a glance.
 // Presentational — data flows in via props, defaulting to placeholder data.
-export function SystemHealthHero({ health = getSystemHealth() }: SystemHealthHeroProps) {
+// Memoized: DashboardPage re-renders every second for the live metric tick,
+// but this section gets no props from it, so there's nothing new to show.
+export const SystemHealthHero = memo(function SystemHealthHero({
+  health = getSystemHealth(),
+}: SystemHealthHeroProps) {
   const config = STATUS_CONFIG[health.status];
   const circumference = 2 * Math.PI * 42;
   const offset = circumference - (health.score / 100) * circumference;
@@ -107,4 +112,4 @@ export function SystemHealthHero({ health = getSystemHealth() }: SystemHealthHer
       </div>
     </Card>
   );
-}
+});

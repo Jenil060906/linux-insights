@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Download, RefreshCw, Settings, Shield, Terminal, Zap, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +19,13 @@ interface QuickActionsSectionProps {
   actions?: QuickAction[];
 }
 
-// Grid of common operator actions. Presentational, non-functional in Phase 1 (no backend wiring).
-export function QuickActionsSection({ actions = getQuickActions() }: QuickActionsSectionProps) {
+// Grid of common operator actions. Presentational, non-functional in Phase 1
+// (no backend wiring). Memoized: gets no props from DashboardPage, so it's
+// excluded from the once-a-second re-render the live metric tick otherwise
+// triggers.
+export const QuickActionsSection = memo(function QuickActionsSection({
+  actions = getQuickActions(),
+}: QuickActionsSectionProps) {
   return (
     <SectionCard title="Quick Actions" description="Common operator tasks" icon={Zap}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -48,4 +54,4 @@ export function QuickActionsSection({ actions = getQuickActions() }: QuickAction
       </div>
     </SectionCard>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ListTree } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { UsageBar } from "@/components/common/UsageBar";
@@ -10,8 +11,12 @@ interface TopProcessesSectionProps {
 }
 
 // Top processes by CPU usage, with inline usage meters scaled to the list's own max.
-// Presentational — data flows in via props.
-export function TopProcessesSection({ processes = getProcesses() }: TopProcessesSectionProps) {
+// Presentational — data flows in via props. Memoized: gets no props from
+// DashboardPage, so it's excluded from the once-a-second re-render the live
+// metric tick otherwise triggers.
+export const TopProcessesSection = memo(function TopProcessesSection({
+  processes = getProcesses(),
+}: TopProcessesSectionProps) {
   const maxCpu = Math.max(...processes.map((p) => p.cpu), 1);
   const maxMemory = Math.max(...processes.map((p) => p.memory), 1);
 
@@ -64,4 +69,4 @@ export function TopProcessesSection({ processes = getProcesses() }: TopProcesses
       </div>
     </SectionCard>
   );
-}
+});

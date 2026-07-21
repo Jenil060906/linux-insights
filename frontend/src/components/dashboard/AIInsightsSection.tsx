@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Gauge, PiggyBank, ServerCog, ShieldAlert, Sparkles, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,11 @@ interface AIInsightsSectionProps {
 }
 
 // AI-generated insight feed. Presentational — data flows in via props.
-export function AIInsightsSection({ insights = getAiInsights() }: AIInsightsSectionProps) {
+// Memoized: gets no props from DashboardPage, so it's excluded from the
+// once-a-second re-render the live metric tick otherwise triggers.
+export const AIInsightsSection = memo(function AIInsightsSection({
+  insights = getAiInsights(),
+}: AIInsightsSectionProps) {
   return (
     <SectionCard
       title="AI Insights"
@@ -56,4 +61,4 @@ export function AIInsightsSection({ insights = getAiInsights() }: AIInsightsSect
       </div>
     </SectionCard>
   );
-}
+});
