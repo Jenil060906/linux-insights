@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Activity, Cpu, HardDrive, MemoryStick, Wifi, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Chip } from "@/components/common/Chip";
@@ -32,8 +33,10 @@ interface LiveMonitoringSectionProps {
   series?: Record<MetricKey, TimeSeriesPoint[]>;
 }
 
-// Single-series usage chart, switchable by metric. Static placeholder time series —
-// no live polling or backend connection.
+// Single-series usage chart, switchable by metric. `series` defaults to a
+// static mock snapshot for standalone use; on the dashboard it's fed a
+// live-ticking series from useLiveMetrics (see DashboardPage) — this
+// component doesn't know or care whether its data is static or live.
 export function LiveMonitoringSection({ series = getLiveMonitoringSeries() }: LiveMonitoringSectionProps) {
   const [active, setActive] = useState<MetricKey>("cpu");
   const activeTab = METRIC_TABS.find((tab) => tab.key === active)!;
@@ -43,7 +46,7 @@ export function LiveMonitoringSection({ series = getLiveMonitoringSeries() }: Li
   return (
     <SectionCard
       title="Live Monitoring"
-      description="Resource activity over the last hour"
+      description="Real-time resource activity"
       icon={Activity}
       action={
         <Badge variant="success">
@@ -70,11 +73,23 @@ export function LiveMonitoringSection({ series = getLiveMonitoringSeries() }: Li
 
       <div
         role="img"
-        aria-label={`${activeTab.label} usage over the last hour, currently ${latest}${activeTab.unit.trim()}`}
+        aria-label={`${activeTab.label} usage, currently ${latest}${activeTab.unit.trim()}, updating live`}
       >
-        <Suspense fallback={<ChartSkeleton height={220} />}>
-          <UsageAreaChart data={activeData} unit={activeTab.unit} color={chartTheme.primary} />
-        </Suspense>
+        {/* Keyed on the selected tab (not on data ticks) so switching metrics
+            crossfades, while per-second data updates animate inside Recharts. */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <Suspense fallback={<ChartSkeleton height={220} />}>
+              <UsageAreaChart data={activeData} unit={activeTab.unit} color={chartTheme.primary} />
+            </Suspense>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </SectionCard>
   );
