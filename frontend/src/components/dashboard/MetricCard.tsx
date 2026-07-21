@@ -1,7 +1,9 @@
+import { motion } from "framer-motion";
 import { TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { IconTile } from "@/components/ui/icon-tile";
 import { MiniSparkline } from "@/components/common/MiniSparkline";
+import { useAnimatedSeries } from "@/hooks/useAnimatedSeries";
 import { cn } from "@/lib/utils";
 import type { MetricCardData } from "@/types/system";
 
@@ -18,6 +20,9 @@ const TREND_CONFIG = {
 export function MetricCard({ data }: { data: MetricCardData }) {
   const trend = TREND_CONFIG[data.trend];
   const TrendIcon = trend.icon;
+  // Sparkline values arrive as a fresh array every tick (live or static) —
+  // tween toward each new shape instead of snapping to it.
+  const animatedSparkline = useAnimatedSeries(data.sparkline);
 
   return (
     <Card className="p-4">
@@ -33,12 +38,22 @@ export function MetricCard({ data }: { data: MetricCardData }) {
       </div>
 
       <div className="mt-3 flex items-baseline gap-1.5">
-        <span className="text-2xl font-bold tabular-nums text-foreground">{data.value}</span>
+        {/* Remounting on value change replays the fade-in — a lightweight
+            "this just updated" cue for the live ticker. */}
+        <motion.span
+          key={data.value}
+          initial={{ opacity: 0.35 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="text-2xl font-bold tabular-nums text-foreground"
+        >
+          {data.value}
+        </motion.span>
         {data.unit && <span className="text-xs text-muted-foreground">{data.unit}</span>}
       </div>
 
       <div className="mt-3" aria-hidden="true">
-        <MiniSparkline data={data.sparkline} />
+        <MiniSparkline data={animatedSparkline} />
       </div>
     </Card>
   );

@@ -115,3 +115,39 @@ export function getMetricCards(): MetricCardData[] {
 export function getLiveMonitoringSeries(): Record<MetricKey, TimeSeriesPoint[]> {
   return liveMonitoringSeries;
 }
+
+// How each metric's raw series value (a plain number — a 0-100 usage percent
+// for cpu/ram/disk, MB/s for network) becomes the string shown on its card.
+const METRIC_DISPLAY: Record<MetricKey, { toDisplayValue: (raw: number) => string; unit: string }> = {
+  cpu: { toDisplayValue: (v) => `${Math.round(v)}`, unit: "%" },
+  ram: { toDisplayValue: (v) => ((v / 100) * 16).toFixed(1), unit: "GB / 16GB" },
+  disk: { toDisplayValue: (v) => `${Math.round((v / 100) * 512)}`, unit: "GB / 512GB" },
+  network: { toDisplayValue: (v) => v.toFixed(1), unit: "MB/s" },
+};
+
+/**
+ * Derives display-ready metric cards (value, trend, sparkline) from a live
+ * time series produced by `useLiveMetrics`. Static metadata — id, label,
+ * icon — still comes from `metricCards` above; only the numbers are
+ * recomputed on every tick. Kept alongside `getMetricCards` since both read
+ * from the same static metric metadata.
+ */
+export function buildLiveMetricCards(series: Record<MetricKey, TimeSeriesPoint[]>): MetricCardData[] {
+  return metricCards.map((card) => {
+    const key = card.id as MetricKey;
+    const points = series[key];
+    const latest = points[points.length - 1]?.value ?? 0;
+    const previous = points[points.length - 2]?.value ?? latest;
+    const pctChange = previous === 0 ? 0 : ((latest - previous) / previous) * 100;
+    const display = METRIC_DISPLAY[key];
+
+    return {
+      ...card,
+      value: display.toDisplayValue(latest),
+      unit: display.unit,
+      trend: Math.abs(pctChange) < 0.3 ? "flat" : pctChange > 0 ? "up" : "down",
+      trendValue: `${pctChange >= 0 ? "+" : ""}${pctChange.toFixed(1)}%`,
+      sparkline: points.map((p) => p.value),
+    };
+  });
+}

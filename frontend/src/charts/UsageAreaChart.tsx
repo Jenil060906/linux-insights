@@ -62,7 +62,9 @@ export function UsageAreaChart({ data, unit = "%", color = chartTheme.primary, h
           fillOpacity={0.1}
           dot={false}
           activeDot={{ r: 5, stroke: chartTheme.border, strokeWidth: 2 }}
-          isAnimationActive={false}
+          isAnimationActive
+          animationDuration={600}
+          animationEasing="ease-out"
         />
       </AreaChart>
     </ResponsiveContainer>
