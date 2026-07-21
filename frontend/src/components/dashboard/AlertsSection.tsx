@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { memo } from "react";
 import { AlertTriangle, CheckCircle2, Info, ListFilter, OctagonAlert, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
-import { Chip } from "@/components/common/Chip";
+import { FilterChipRow, type FilterOption } from "@/components/common/FilterChipRow";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { useCategoryFilter, type CategoryFilter } from "@/hooks/useCategoryFilter";
 import { cn } from "@/lib/utils";
 import { getAlerts } from "@/mock/alerts";
 import type { AlertItem, AlertSeverity } from "@/types/system";
@@ -22,51 +23,41 @@ const SEVERITY_CONFIG: Record<
   info: { icon: Info, badgeVariant: "primary", label: "Info", iconClassName: "text-primary" },
 };
 
-type SeverityFilter = "all" | AlertSeverity;
+const ALERT_SEVERITIES: AlertSeverity[] = ["critical", "warning", "info"];
+const getAlertSeverity = (alert: AlertItem) => alert.severity;
+
+const FILTER_OPTIONS: FilterOption<CategoryFilter<AlertSeverity>>[] = [
+  { key: "all", label: "All", icon: ListFilter },
+  { key: "critical", label: "Critical", icon: SEVERITY_CONFIG.critical.icon },
+  { key: "warning", label: "Warning", icon: SEVERITY_CONFIG.warning.icon },
+  { key: "info", label: "Info", icon: SEVERITY_CONFIG.info.icon },
+];
 
 interface AlertsSectionProps {
   alerts?: AlertItem[];
 }
 
-// Recent alerts feed with client-side severity filtering. Presentational — data flows in via props.
-export function AlertsSection({ alerts = getAlerts() }: AlertsSectionProps) {
-  const [filter, setFilter] = useState<SeverityFilter>("all");
-
-  const counts = useMemo(() => {
-    return alerts.reduce<Record<SeverityFilter, number>>(
-      (acc, alert) => {
-        acc.all += 1;
-        acc[alert.severity] += 1;
-        return acc;
-      },
-      { all: 0, critical: 0, warning: 0, info: 0 }
-    );
-  }, [alerts]);
-
-  const visibleAlerts = filter === "all" ? alerts : alerts.filter((alert) => alert.severity === filter);
-
-  const filters: { key: SeverityFilter; label: string; icon?: LucideIcon }[] = [
-    { key: "all", label: "All", icon: ListFilter },
-    { key: "critical", label: "Critical", icon: SEVERITY_CONFIG.critical.icon },
-    { key: "warning", label: "Warning", icon: SEVERITY_CONFIG.warning.icon },
-    { key: "info", label: "Info", icon: SEVERITY_CONFIG.info.icon },
-  ];
+// Recent alerts feed with client-side severity filtering. Presentational —
+// data flows in via props. Memoized: with no props passed by DashboardPage,
+// it would otherwise re-render every second alongside the live metric tick
+// for no reason.
+export const AlertsSection = memo(function AlertsSection({ alerts = getAlerts() }: AlertsSectionProps) {
+  const {
+    filter,
+    setFilter,
+    counts,
+    visibleItems: visibleAlerts,
+  } = useCategoryFilter(alerts, getAlertSeverity, ALERT_SEVERITIES);
 
   return (
     <SectionCard title="Alerts" description="Recent system alerts" icon={AlertTriangle}>
-      <div role="group" aria-label="Filter alerts by severity" className="mb-4 flex flex-wrap gap-1.5">
-        {filters.map((item) => (
-          <Chip
-            key={item.key}
-            icon={item.icon}
-            active={filter === item.key}
-            count={counts[item.key]}
-            onClick={() => setFilter(item.key)}
-          >
-            {item.label}
-          </Chip>
-        ))}
-      </div>
+      <FilterChipRow
+        groupLabel="Filter alerts by severity"
+        options={FILTER_OPTIONS}
+        active={filter}
+        counts={counts}
+        onChange={setFilter}
+      />
 
       {visibleAlerts.length === 0 ? (
         <EmptyState icon={CheckCircle2} message="No alerts in this category." />
@@ -95,4 +86,4 @@ export function AlertsSection({ alerts = getAlerts() }: AlertsSectionProps) {
       )}
     </SectionCard>
   );
-}
+});
