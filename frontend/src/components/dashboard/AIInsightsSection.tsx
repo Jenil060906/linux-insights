@@ -2,7 +2,7 @@ import { Gauge, PiggyBank, ServerCog, ShieldAlert, Sparkles, type LucideIcon } f
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
-import { aiInsights as defaultAiInsights } from "@/data/placeholder";
+import { getAiInsights } from "@/mock/insights";
 import type { AIInsight, InsightCategory, InsightImpact } from "@/types/system";
 
 const CATEGORY_CONFIG: Record<InsightCategory, { icon: LucideIcon; label: string }> = {
@@ -23,7 +23,7 @@ interface AIInsightsSectionProps {
 }
 
 // AI-generated insight feed. Presentational — data flows in via props.
-export function AIInsightsSection({ insights = defaultAiInsights }: AIInsightsSectionProps) {
+export function AIInsightsSection({ insights = getAiInsights() }: AIInsightsSectionProps) {
   return (
     <SectionCard
       title="AI Insights"

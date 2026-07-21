@@ -87,3 +87,8 @@ export interface QuickAction {
   description: string;
   icon: "restart" | "terminal" | "download" | "shield" | "refresh" | "settings";
 }
+
+export interface AnalyticsPanel {
+  id: string;
+  label: string;
+}

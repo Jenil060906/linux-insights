@@ -4,7 +4,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Chip } from "@/components/common/Chip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { alerts as defaultAlerts } from "@/data/placeholder";
+import { getAlerts } from "@/mock/alerts";
 import type { AlertItem, AlertSeverity } from "@/types/system";
 
 const SEVERITY_CONFIG: Record<
@@ -28,7 +28,7 @@ interface AlertsSectionProps {
 }
 
 // Recent alerts feed with client-side severity filtering. Presentational — data flows in via props.
-export function AlertsSection({ alerts = defaultAlerts }: AlertsSectionProps) {
+export function AlertsSection({ alerts = getAlerts() }: AlertsSectionProps) {
   const [filter, setFilter] = useState<SeverityFilter>("all");
 
   const counts = useMemo(() => {

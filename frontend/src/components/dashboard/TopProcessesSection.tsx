@@ -2,7 +2,7 @@ import { ListTree } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { UsageBar } from "@/components/common/UsageBar";
 import { cn } from "@/lib/utils";
-import { topProcesses as defaultTopProcesses } from "@/data/placeholder";
+import { getProcesses } from "@/mock/processes";
 import type { ProcessItem } from "@/types/system";
 
 interface TopProcessesSectionProps {
@@ -11,7 +11,7 @@ interface TopProcessesSectionProps {
 
 // Top processes by CPU usage, with inline usage meters scaled to the list's own max.
 // Presentational — data flows in via props.
-export function TopProcessesSection({ processes = defaultTopProcesses }: TopProcessesSectionProps) {
+export function TopProcessesSection({ processes = getProcesses() }: TopProcessesSectionProps) {
   const maxCpu = Math.max(...processes.map((p) => p.cpu), 1);
   const maxMemory = Math.max(...processes.map((p) => p.memory), 1);
 

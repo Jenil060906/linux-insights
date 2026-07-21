@@ -2,7 +2,7 @@ import { Download, RefreshCw, Settings, Shield, Terminal, Zap, type LucideIcon }
 import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { IconTile } from "@/components/ui/icon-tile";
-import { quickActions as defaultQuickActions } from "@/data/placeholder";
+import { getQuickActions } from "@/mock/quickActions";
 import type { QuickAction } from "@/types/system";
 
 const ICON_MAP: Record<QuickAction["icon"], LucideIcon> = {
@@ -19,7 +19,7 @@ interface QuickActionsSectionProps {
 }
 
 // Grid of common operator actions. Presentational, non-functional in Phase 1 (no backend wiring).
-export function QuickActionsSection({ actions = defaultQuickActions }: QuickActionsSectionProps) {
+export function QuickActionsSection({ actions = getQuickActions() }: QuickActionsSectionProps) {
   return (
     <SectionCard title="Quick Actions" description="Common operator tasks" icon={Zap}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -4,7 +4,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Chip } from "@/components/common/Chip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { logEntries as defaultLogEntries } from "@/data/placeholder";
+import { getLogEntries } from "@/mock/logs";
 import type { LogEntry } from "@/types/system";
 
 const LEVEL_COLOR: Record<LogEntry["level"], string> = {
@@ -35,7 +35,7 @@ interface LogsSectionProps {
 }
 
 // Tailing system log feed with client-side level filtering. Presentational — data flows in via props.
-export function LogsSection({ logs = defaultLogEntries }: LogsSectionProps) {
+export function LogsSection({ logs = getLogEntries() }: LogsSectionProps) {
   const [filter, setFilter] = useState<LevelFilter>("all");
 
   const counts = useMemo(() => {
