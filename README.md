@@ -63,7 +63,7 @@ The login feature (`src/features/login/`) is deliberately self-contained with it
 All design tokens (color, typography, radius, shadow, 8px spacing scale) are defined once in `frontend/tailwind.config.ts` with rationale comments, and consumed through reusable primitives:
 
 - `components/ui/` — `Button`, `Badge`, `Card`, `StatusIndicator`, `IconTile`, `Skeleton`, `Input`
-- `components/common/` — `SectionCard`, `Chip`, `UsageBar`, `MiniSparkline`, `FadeIn`, `PlaceholderCard`
+- `components/common/` — `SectionCard`, `Chip`, `UsageBar`, `MiniSparkline`, `FadeIn`, `PlaceholderCard`, `EmptyState`
 - `charts/` — `UsageAreaChart` (Recharts), `ChartSkeleton`, shared `chartTheme`
 
 Dark theme only. Every icon-only control has an `aria-label`; decorative icons are `aria-hidden`; custom animations respect `prefers-reduced-motion` via `motion-safe:`/`MotionConfig`.
@@ -112,3 +112,13 @@ Metric Cards and the Live Monitoring chart are wired to a simulated live stream 
 ### Responsiveness
 
 Layout is audited for phone, tablet, laptop, and large-desktop widths: no horizontal scrolling, grid columns collapse progressively (`sm:`/`lg:` tiers), typography scales, and desktop appearance is unchanged from the original design.
+
+### UI polish pass
+
+A visual-QA pass across the whole app (dashboard + login) fixed a handful of small inconsistencies without touching layout or functionality:
+
+- **Icon proportions** — `IconTile`'s icon glyph now scales with tile size instead of staying a fixed 16px; the `lg` tile (used by Quick Actions) previously looked under-filled at 36px with only a 16px icon.
+- **Empty states** — Alerts and Logs each had their own hand-rolled "nothing here" markup that didn't match (one dashed-boxed, one not). Both now use a shared `EmptyState` component (icon + message), consistent with the box-and-icon language `PlaceholderCard` already established elsewhere.
+- **Hover feedback** — Metric Cards (CPU/Memory/Disk/Network) previously had no hover treatment at all despite now showing live-updating data; they get a subtle shadow lift (`hover:shadow-soft`) so the tiles read as active, not static wallpaper.
+- **Transitions** — `UsageBar`'s fill now animates width changes instead of snapping, matching the animated-update treatment used everywhere else data can change.
+- **Dead CSS** — removed a no-op `hover:border-border` on `Chip` (declared a hover override equal to its own resting value).

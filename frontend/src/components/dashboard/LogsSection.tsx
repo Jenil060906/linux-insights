@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Bug, Info, ListFilter, OctagonAlert, ScrollText, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Chip } from "@/components/common/Chip";
+import { EmptyState } from "@/components/common/EmptyState";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { getLogEntries } from "@/mock/logs";
@@ -77,9 +78,12 @@ export function LogsSection({ logs = getLogEntries() }: LogsSectionProps) {
 
       <ScrollArea className="h-[220px] rounded-md border border-border bg-surface/50">
         {visibleLogs.length === 0 ? (
-          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-            No log entries at this level.
-          </p>
+          <EmptyState
+            icon={ScrollText}
+            message="No log entries at this level."
+            bordered={false}
+            className="h-full py-0"
+          />
         ) : (
           <div className="flex flex-col divide-y divide-border font-mono text-xs">
             {visibleLogs.map((log) => (

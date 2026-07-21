@@ -25,7 +25,7 @@ export function MetricCard({ data }: { data: MetricCardData }) {
   const animatedSparkline = useAnimatedSeries(data.sparkline);
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 transition-shadow duration-200 hover:shadow-soft">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2.5">
           <IconTile icon={data.icon} tone="accent" size="md" />

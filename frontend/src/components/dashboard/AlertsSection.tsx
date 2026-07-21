@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Info, ListFilter, OctagonAlert, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, ListFilter, OctagonAlert, type LucideIcon } from "lucide-react";
 import { SectionCard } from "@/components/common/SectionCard";
 import { Chip } from "@/components/common/Chip";
+import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getAlerts } from "@/mock/alerts";
@@ -68,9 +69,7 @@ export function AlertsSection({ alerts = getAlerts() }: AlertsSectionProps) {
       </div>
 
       {visibleAlerts.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border bg-surface/40 px-3 py-6 text-center text-xs text-muted-foreground">
-          No alerts in this category.
-        </p>
+        <EmptyState icon={CheckCircle2} message="No alerts in this category." />
       ) : (
         <div className="flex flex-col gap-2">
           {visibleAlerts.map((alert) => {
