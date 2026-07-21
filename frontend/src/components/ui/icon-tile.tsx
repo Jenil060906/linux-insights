@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 //    communicating live state (e.g. "AI Status", "Uptime"), never used
 //    decoratively — see the color-token comment in tailwind.config.ts.
 const iconTileVariants = cva(
-  "flex shrink-0 items-center justify-center rounded-sm [&_svg]:h-4 [&_svg]:w-4",
+  "flex shrink-0 items-center justify-center rounded-sm",
   {
     variants: {
       tone: {
@@ -31,10 +31,13 @@ const iconTileVariants = cva(
         warning: "bg-warning/10 text-warning",
         danger: "bg-danger/10 text-danger",
       },
+      // Icon glyph size scales with the tile so fill (icon area vs box area)
+      // stays visually consistent — a "lg" tile with a 16px icon reads as
+      // mostly empty padding, so it steps up to 18px instead.
       size: {
-        sm: "h-7 w-7",
-        md: "h-8 w-8",
-        lg: "h-9 w-9",
+        sm: "h-7 w-7 [&_svg]:h-4 [&_svg]:w-4",
+        md: "h-8 w-8 [&_svg]:h-4 [&_svg]:w-4",
+        lg: "h-9 w-9 [&_svg]:h-[18px] [&_svg]:w-[18px]",
       },
     },
     defaultVariants: {

@@ -19,7 +19,7 @@ export function UsageBar({ value, max = 100, className, barClassName }: UsageBar
       className={cn("h-1.5 w-full overflow-hidden rounded-full bg-surface", className)}
     >
       <div
-        className={cn("h-full rounded-full bg-primary", barClassName)}
+        className={cn("h-full rounded-full bg-primary transition-[width] duration-300 ease-out", barClassName)}
         style={{ width: `${percent}%` }}
       />
     </div>
