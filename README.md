@@ -10,7 +10,7 @@ This repo is a monorepo laid out for the full product (agent → API → dashboa
 |---|---|---|
 | `frontend/` | **Implemented** | React dashboard UI — see below |
 | `backend/` | Scaffold only | Future API server (`app`, `api`, `database`, `models`, `services`, `websocket`) |
-| `linux-agent/` | Scaffold only | Future host-side metrics collector |
+| `linux-agent/` | **Skeleton only** | Host-side metrics collector — project structure exists, no monitoring code yet. See below |
 | `docs/` | Scaffold only | Architecture notes, API docs, UI design references |
 | `scripts/` | Scaffold only | Future dev/ops tooling |
 | `tests/` | Scaffold only | Future cross-package test suites |
@@ -131,6 +131,26 @@ A structural review (folder structure, component reuse, performance, accessibili
 - **Needless re-renders** — `DashboardPage` re-renders every second to drive the live metric tick, which by default re-renders every section beneath it too — including the 7 of 9 sections that receive no live data and have nothing new to show (`SystemHealthHero`, `AIInsightsSection`, `AlertsSection`, `TopProcessesSection`, `QuickActionsSection`, `AnalyticsSection`, `LogsSection`). Wrapped each in `React.memo`; since none of them are ever passed props by `DashboardPage`, they now render once and skip every subsequent tick. `MetricCardGrid` and `LiveMonitoringSection` are intentionally left unmemoized — they're supposed to update every second.
 - **Split config maps** — `LogsSection` tracked a log level's icon, text color, and border color in three separate `Record<LogLevel, ...>` objects that had to be kept in sync by key; `Header` did the same (label + status tone) for connection state. Both consolidated into one config map per status enum, matching the pattern `AlertsSection`/`SystemHealthHero` already used.
 - **Accessibility** — the "Advanced" disclosure toggle in the manual-connect form had `aria-expanded` but nothing pointing assistive tech at the region it expands; added a matching `id`/`aria-controls` pair.
+
+## Linux Agent
+
+The Linux Agent is the host-side component of Linux Insight: a process that will eventually run on each monitored Linux server, collect system metrics/logs, and report them to the backend. As of Week 2, only the **project skeleton** exists — no collection or monitoring logic has been written yet.
+
+```
+├── linux-agent/
+│
+├── collectors/
+├── config/
+├── core/
+├── README.md
+├── requirements.txt
+└── main.py
+```
+
+- `collectors/`, `config/`, `core/` — empty packages (each holds only an `__init__.py`) reserved for metric/log collectors, configuration loading, and core runtime logic respectively.
+- `main.py` — entry point; currently only a module docstring, no code.
+- `requirements.txt` — currently empty.
+- `README.md` (`linux-agent/README.md`) — explains the agent's purpose and current status in more detail.
 
 ## Release review — v0.1 (production readiness)
 
