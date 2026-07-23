@@ -10,7 +10,7 @@ This repo is a monorepo laid out for the full product (agent → API → dashboa
 |---|---|---|
 | `frontend/` | **Implemented** | React dashboard UI — see below |
 | `backend/` | Scaffold only | Future API server (`app`, `api`, `database`, `models`, `services`, `websocket`) |
-| `linux-agent/` | **Skeleton only** | Host-side metrics collector — project structure exists, no monitoring code yet. See below |
+| `linux-agent/` | **Skeleton + first collector** | Host-side metrics collector — `collectors/system_info.py` implemented, rest is skeleton. See below |
 | `docs/` | Scaffold only | Architecture notes, API docs, UI design references |
 | `scripts/` | Scaffold only | Future dev/ops tooling |
 | `tests/` | Scaffold only | Future cross-package test suites |
@@ -134,12 +134,13 @@ A structural review (folder structure, component reuse, performance, accessibili
 
 ## Linux Agent
 
-The Linux Agent is the host-side component of Linux Insight: a process that will eventually run on each monitored Linux server, collect system metrics/logs, and report them to the backend. As of Week 2, only the **project skeleton** exists — no collection or monitoring logic has been written yet.
+The Linux Agent is the host-side component of Linux Insight: a process that will eventually run on each monitored Linux server, collect system metrics/logs, and report them to the backend. As of Week 2, its first collector — `collectors/system_info.py` — is implemented; the rest of the agent is still a **project skeleton**.
 
 ```
 ├── linux-agent/
 │
 ├── collectors/
+│   └── system_info.py   # Implemented — static host/system identity info
 ├── config/
 ├── core/
 ├── README.md
@@ -147,7 +148,8 @@ The Linux Agent is the host-side component of Linux Insight: a process that will
 └── main.py
 ```
 
-- `collectors/`, `config/`, `core/` — empty packages (each holds only an `__init__.py`) reserved for metric/log collectors, configuration loading, and core runtime logic respectively.
+- `collectors/system_info.py` — **implemented.** Collects static host identity info (hostname, OS, OS version, kernel version, architecture, processor, platform string, Python version) into a plain dict via `collect_system_info()`, using only the standard library (`platform`, `socket`) — no `psutil`.
+- `collectors/` (remaining), `config/`, `core/` — empty packages (each holds only an `__init__.py`, aside from `system_info.py` above) reserved for the remaining metric/log collectors, configuration loading, and core runtime logic respectively.
 - `main.py` — entry point; currently only a module docstring, no code.
 - `requirements.txt` — currently empty.
 - `README.md` (`linux-agent/README.md`) — explains the agent's purpose and current status in more detail.
