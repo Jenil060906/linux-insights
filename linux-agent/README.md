@@ -28,6 +28,35 @@ linux-agent/
 
 Full details (metrics, `psutil` functions used, expected output, future enhancements) live in [`docs/cpu.md`](docs/cpu.md).
 
+### Metrics
+
+| Key | Description |
+|---|---|
+| `cpu_usage_percent` | Overall CPU utilization percentage |
+| `physical_cores` | Number of physical CPU cores |
+| `logical_cores` | Number of logical CPU cores (includes SMT/hyper-threading siblings) |
+| `cpu_frequency` | Dict with `current`, `min`, `max` CPU frequency in MHz |
+| `cpu_load` | Dict with `1min`, `5min`, `15min` system load averages |
+| `cpu_times` | Dict of accumulated CPU time (seconds) per state (user, system, idle, etc.) |
+
+Any value that can't be determined falls back to `"unknown"` (or an empty dict for `cpu_times`) rather than raising.
+
+### `psutil` Functions Used
+
+- `psutil.cpu_percent(interval=0.1)` — `cpu_usage_percent`
+- `psutil.cpu_count(logical=False)` — `physical_cores`
+- `psutil.cpu_count(logical=True)` — `logical_cores`
+- `psutil.cpu_freq()` — `cpu_frequency`
+- `psutil.getloadavg()` — `cpu_load`
+- `psutil.cpu_times()` — `cpu_times`
+
+### Future Enhancements
+
+- Per-core (not just aggregate) usage percentages and frequencies.
+- Non-blocking usage sampling (cache the previous `cpu_percent` call instead of a blocking `interval`), once a scheduler exists to call it periodically.
+- CPU temperature, where the platform exposes it.
+- Context-manager or interval-based sampling for more accurate usage percentages under sustained load.
+
 ## Status
 
 Project skeleton only. No monitoring code has been written.
@@ -36,7 +65,7 @@ Project skeleton only. No monitoring code has been written.
 
 In-depth, per-collector documentation lives under [`docs/`](docs/) so this README can stay a short entry point:
 
-- [System Information Collector](docs/system-info.md)
+- [System Information](docs/system-info.md)
 - [CPU Collector](docs/cpu.md)
 - [Memory Collector](docs/memory.md)
 - [Disk Collector](docs/disk.md)

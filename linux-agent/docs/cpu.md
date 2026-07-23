@@ -19,14 +19,22 @@ Collects real-time CPU utilization and hardware/load information: overall usage 
 
 Any value that can't be determined falls back to `"unknown"` (or an empty dict for `cpu_times`) rather than raising.
 
-## `psutil` Functions Used
+## Python Modules Used
 
-- `psutil.cpu_percent(interval=0.1)` — `cpu_usage_percent`
-- `psutil.cpu_count(logical=False)` — `physical_cores`
-- `psutil.cpu_count(logical=True)` — `logical_cores`
-- `psutil.cpu_freq()` — `cpu_frequency`
-- `psutil.getloadavg()` — `cpu_load`
-- `psutil.cpu_times()` — `cpu_times`
+- `psutil` — third-party dependency, declared in `requirements.txt`.
+
+## Functions Used
+
+| Function | Populates |
+|---|---|
+| `psutil.cpu_percent(interval=0.1)` | `cpu_usage_percent` |
+| `psutil.cpu_count(logical=False)` | `physical_cores` |
+| `psutil.cpu_count(logical=True)` | `logical_cores` |
+| `psutil.cpu_freq()` | `cpu_frequency` |
+| `psutil.getloadavg()` | `cpu_load` |
+| `psutil.cpu_times()` | `cpu_times` |
+
+Internal helpers: `_get_cpu_frequency()`, `_get_cpu_load()`, `_get_cpu_times()`, `_safe_call()` (generic wrapper that maps exceptions/`None` to `"unknown"`).
 
 ## Expected Output
 
@@ -59,6 +67,12 @@ Any value that can't be determined falls back to `"unknown"` (or an empty dict f
     }
 }
 ```
+
+## Design Notes
+
+- **Blocking sample interval.** `psutil.cpu_percent(interval=0.1)` blocks for 100ms to compute a real usage delta. This is deliberate: calling `cpu_percent()` with no interval on the very first call always returns `0.0` (it needs a prior reference point), which would be misleading in a one-shot collector with no scheduler. A future scheduler-driven design could instead call `cpu_percent(interval=None)` on a fixed cadence and rely on the delta since the previous tick (see Future Enhancements).
+- **Graceful degradation.** `psutil.cpu_freq()` returns `None` on some virtualized/containerized hosts instead of raising — handled explicitly rather than relying on `_safe_call()` alone. `psutil.getloadavg()` is not available on all platforms; it's wrapped separately so its absence doesn't affect the rest of the payload.
+- **No side effects.** This collector has no threading, scheduling, or monitor integration by design — it is a pure, synchronous, single-call `collect_cpu_info()` function, matching the System Information Collector's shape.
 
 ## Future Enhancements
 

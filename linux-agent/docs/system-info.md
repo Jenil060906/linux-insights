@@ -2,7 +2,7 @@
 
 `collectors/system_info.py` — static host identity information.
 
-> **Status:** Design documented here ahead of/alongside implementation. Check `collectors/system_info.py` in the branch you're working from for the current code state.
+> **Note:** Design documented here ahead of/alongside implementation. Check `collectors/system_info.py` in the branch you're working from for the current code state.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Collects static, identity-level information about the host — data that stays c
 | `os_version` | Detailed OS release/version string |
 | `kernel_version` | Kernel release version |
 | `architecture` | Machine hardware architecture (e.g. `x86_64`) |
-| `processor` | Processor model name, if available (see fallback strategy below) |
+| `processor` | Processor model name, if available (see Design Notes for the fallback strategy) |
 | `platform` | Full platform identification string |
 | `python_version` | Version of the running Python interpreter |
 
@@ -25,20 +25,26 @@ Any value that can't be determined falls back to `"unknown"` rather than raising
 
 ## Python Modules Used
 
-- `platform` — OS, kernel, architecture, processor, platform string, Python version.
-- `socket` — hostname.
-- `/proc/cpuinfo` (read directly, no extra import) — Linux-specific fallback for `processor`.
+- `platform` — standard library
+- `socket` — standard library
 
 Standard library only — no third-party dependencies (e.g. no `psutil`).
 
-## Processor Fallback Strategy
+## Functions Used
 
-On most Linux distributions, `platform.processor()` doesn't return a real CPU model — it reflects `uname -p`, which the kernel/libc typically leaves empty (surfaced as `""` or `"unknown"`/`"Unknown"`). To still report a meaningful value:
+| Function | Populates |
+|---|---|
+| `socket.gethostname()` | `hostname` |
+| `platform.system()` | `os` |
+| `platform.version()` | `os_version` |
+| `platform.release()` | `kernel_version` |
+| `platform.machine()` | `architecture` |
+| `platform.processor()` | `processor` (primary attempt — see Design Notes) |
+| `platform.platform()` | `platform` |
+| `platform.python_version()` | `python_version` |
+| Direct read of `/proc/cpuinfo` (`model name` field) | `processor` (fallback — see Design Notes) |
 
-1. Try `platform.processor()` first.
-2. If it's empty or `"unknown"`/`"Unknown"`, parse the `model name` field out of `/proc/cpuinfo`, which the kernel always populates on x86/x86_64.
-3. Return that model name if found.
-4. If both methods fail, return `"unknown"`.
+Internal helpers: `_get_processor_name()` (processor + fallback logic), `_safe_call()` (generic wrapper that maps exceptions/empty values to `"unknown"`).
 
 ## Expected Output
 
@@ -54,6 +60,17 @@ On most Linux distributions, `platform.processor()` doesn't return a real CPU mo
     "python_version": "3.14.4"
 }
 ```
+
+## Design Notes
+
+**Processor fallback strategy.** On most Linux distributions, `platform.processor()` doesn't return a real CPU model — it reflects `uname -p`, which the kernel/libc typically leaves empty (surfaced as `""` or `"unknown"`/`"Unknown"`). To still report a meaningful value:
+
+1. Try `platform.processor()` first.
+2. If it's empty or `"unknown"`/`"Unknown"`, parse the `model name` field out of `/proc/cpuinfo`, which the kernel always populates on x86/x86_64.
+3. Return that model name if found.
+4. If both methods fail, return `"unknown"`.
+
+> **Warning:** the `/proc/cpuinfo` fallback is Linux-specific. On non-Linux platforms (or containers without `/proc` mounted), the collector still degrades gracefully to `"unknown"` rather than raising.
 
 ## Future Enhancements
 

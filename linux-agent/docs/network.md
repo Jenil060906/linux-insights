@@ -12,9 +12,9 @@ TODO: Will be responsible for collecting network-related metrics from the host, 
 
 TODO: List the metrics this collector will expose once implemented (e.g. per-interface bytes/packets sent and received, errors, drops, active connection counts).
 
-## Python Modules Used
+## Functions Used
 
-TODO: Document which modules this collector relies on (likely `psutil`, mirroring `collectors/cpu.py`).
+TODO: Document the specific functions this collector will call once implemented (likely `psutil.net_io_counters()` / `psutil.net_connections()`, mirroring `collectors/cpu.py`'s approach).
 
 ## Expected Output
 

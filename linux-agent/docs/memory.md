@@ -12,9 +12,9 @@ TODO: Will be responsible for collecting memory-related metrics from the host, s
 
 TODO: List the metrics this collector will expose once implemented (e.g. total/used/available/free RAM, swap total/used, memory percent).
 
-## Python Modules Used
+## Functions Used
 
-TODO: Document which modules this collector relies on (likely `psutil`, mirroring `collectors/cpu.py`).
+TODO: Document the specific functions this collector will call once implemented (likely `psutil.virtual_memory()` / `psutil.swap_memory()`, mirroring `collectors/cpu.py`'s approach).
 
 ## Expected Output
 

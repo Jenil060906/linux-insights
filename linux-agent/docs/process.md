@@ -12,9 +12,9 @@ TODO: Will be responsible for collecting information about running processes on 
 
 TODO: List the metrics this collector will expose once implemented (e.g. PID, name, user, CPU percent, memory percent, status, per-process start time).
 
-## Python Modules Used
+## Functions Used
 
-TODO: Document which modules this collector relies on (likely `psutil`, mirroring `collectors/cpu.py`).
+TODO: Document the specific functions this collector will call once implemented (likely `psutil.process_iter()` and related `psutil.Process` methods, mirroring `collectors/cpu.py`'s approach).
 
 ## Expected Output
 

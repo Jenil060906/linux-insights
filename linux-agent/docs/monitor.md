@@ -8,11 +8,11 @@ TODO: Will be responsible for scheduling and running the individual collectors (
 
 ## Metrics
 
-TODO: Not applicable directly — the monitor aggregates the metrics produced by the individual collectors documented alongside this file (see `system-info.md`, `cpu.md`, `memory.md`, `disk.md`, `network.md`, `process.md`).
+TODO: Not applicable directly — the monitor aggregates the metrics produced by the individual collectors documented alongside this file (see [System Information](system-info.md), [CPU Collector](cpu.md), [Memory Collector](memory.md), [Disk Collector](disk.md), [Network Collector](network.md), [Process Collector](process.md)).
 
-## Python Modules Used
+## Functions Used
 
-TODO: Document scheduling/runtime approach once designed (e.g. `sched`, `asyncio`, or a simple loop with `time.sleep`).
+TODO: Document the scheduling/runtime approach once designed (e.g. `sched`, `asyncio`, or a simple loop with `time.sleep`).
 
 ## Expected Output
 
