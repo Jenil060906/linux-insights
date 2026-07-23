@@ -63,12 +63,12 @@ Project skeleton only. No monitoring code has been written.
 
 # Detailed Documentation
 
-In-depth, per-collector documentation lives under [`docs/`](docs/) so this README can stay a short entry point:
-
-- [System Information](docs/system-info.md)
-- [CPU Collector](docs/cpu.md)
-- [Memory Collector](docs/memory.md)
-- [Disk Collector](docs/disk.md)
-- [Network Collector](docs/network.md)
-- [Process Collector](docs/process.md)
-- [Monitor](docs/monitor.md)
+| Module | Documentation |
+|---------|---------------|
+| System Information | docs/system-info.md |
+| CPU Collector | docs/cpu.md |
+| Memory Collector | docs/memory.md |
+| Disk Collector | docs/disk.md |
+| Network Collector | docs/network.md |
+| Process Collector | docs/process.md |
+| Monitor | docs/monitor.md |

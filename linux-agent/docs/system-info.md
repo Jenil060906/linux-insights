@@ -4,6 +4,10 @@
 
 > **Note:** Design documented here ahead of/alongside implementation. Check `collectors/system_info.py` in the branch you're working from for the current code state.
 
+## Overview
+
+The System Information Collector reports static host-identity data (hostname, OS, kernel, architecture, processor, platform string, Python version) as a single `dict`, using only the Python standard library. It is the first collector implemented in `linux-agent/collectors/` and establishes the conventions (per-field `"unknown"` fallback, no printing/CLI, single public entry point) the other collectors follow.
+
 ## Purpose
 
 Collects static, identity-level information about the host — data that stays constant between collection cycles, as opposed to volatile metrics like CPU load or memory usage (which live in the other collectors). Exposed via a single function, `collect_system_info()`, which returns a plain `dict`.

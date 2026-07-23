@@ -2,6 +2,10 @@
 
 `collectors/cpu.py` collects CPU-related metrics for the host via `collect_cpu_info()`, which returns a plain `dict`. Uses `psutil` (declared in `requirements.txt`); no threading, scheduling, or monitor integration.
 
+## Overview
+
+The CPU Collector reports live CPU utilization and hardware/load information (usage percentage, core counts, frequency, load averages, per-state times) as a single `dict`, using `psutil`. It follows the same conventions as the System Information Collector: a single public entry point (`collect_cpu_info()`), per-field graceful fallback instead of raising, no printing/CLI/threading.
+
 ## Purpose
 
 Collects real-time CPU utilization and hardware/load information: overall usage percentage, physical/logical core counts, current frequency, system load averages, and per-state CPU time accounting.
