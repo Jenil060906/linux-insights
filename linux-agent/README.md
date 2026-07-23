@@ -27,6 +27,8 @@ linux-agent/
 
 `collectors/cpu.py` collects CPU-related metrics for the host via `collect_cpu_info()`, which returns a plain `dict`. Uses `psutil` (declared in `requirements.txt`); no threading, scheduling, or monitor integration.
 
+Full details (metrics, `psutil` functions used, expected output, future enhancements) live in [`docs/cpu.md`](docs/cpu.md).
+
 ### Metrics
 
 | Key | Description |
@@ -117,4 +119,17 @@ Any value that can't be determined falls back to `"unknown"` rather than raising
 
 ## Status
 
+Project skeleton only. No monitoring code has been written.
+
+# Detailed Documentation
+
+| Module | Documentation |
+|---------|---------------|
+| System Information | docs/system-info.md |
+| CPU Collector | docs/cpu.md |
+| Memory Collector | docs/memory.md |
+| Disk Collector | docs/disk.md |
+| Network Collector | docs/network.md |
+| Process Collector | docs/process.md |
+| Monitor | docs/monitor.md |
 First collector (`system_info.py`) implemented. Everything else — remaining collectors, configuration loading, core runtime — is still a project skeleton with no code written.
