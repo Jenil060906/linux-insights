@@ -1,5 +1,5 @@
 from pprint import pprint
 
-from collectors.cpu import collect_cpu_info
+from collectors.memory import collect_memory_info
 
-pprint(collect_cpu_info())
+pprint(collect_memory_info())
