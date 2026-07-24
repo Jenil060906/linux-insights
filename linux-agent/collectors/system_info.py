@@ -1,106 +1,236 @@
 """System info collector.
 
-Collects static host identity information — the kind of data that does
-not change between successive collection cycles (hostname, OS/kernel
-version, architecture, processor, and Python runtime details). For
-volatile metrics (CPU load, memory usage, etc.), see the other
-collectors in this package.
+Collects static host identity information for the current machine —
+hostname, OS/distribution identity, kernel version, architecture,
+processor name, and Python runtime details. This collector is
+Linux-only: on any other operating system, ``collect_system_info()``
+returns an ``"unsupported_platform"`` response instead of attempting
+to collect data.
 
-Relies only on the Python standard library (``platform``, ``socket``,
-plus reading ``/proc/cpuinfo`` directly for the Linux processor-name
-fallback) so this collector has no third-party dependencies.
+Relies only on the standard library (``platform``, ``socket``, ``os``,
+``pathlib``, ``datetime``) so this collector has no third-party
+dependencies and is fully self-contained: no printing, logging,
+scheduling, threading, or network/API calls.
 """
 
+import os
 import platform
 import socket
-from typing import Dict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Tuple
+
+_COLLECTOR_NAME = "system_info"
+_OS_RELEASE_PATH = Path("/etc/os-release")
+_CPUINFO_PATH = Path("/proc/cpuinfo")
 
 
-def collect_system_info() -> Dict[str, str]:
+def collect_system_info() -> Dict[str, object]:
     """Collect static system identity information for the current host.
 
+    Linux-only: if the host operating system is not Linux, an
+    ``"unsupported_platform"`` response is returned instead of
+    attempting collection.
+
     Returns:
-        A dictionary with the following string keys:
-            - "hostname": Network name of the host.
-            - "os": Operating system name (e.g. "Linux").
-            - "os_version": Detailed OS release/version string.
-            - "kernel_version": Kernel release version.
-            - "architecture": Machine hardware architecture (e.g. "x86_64").
-            - "processor": Processor name/identifier, if available.
-            - "platform": Full platform identification string.
-            - "python_version": Version of the running Python interpreter.
+        On Linux, a dictionary shaped like::
 
-        Any field that cannot be determined is set to "unknown" instead
-        of raising, so a single unavailable value never prevents the
-        rest of the system information from being collected.
+            {
+                "collector": "system_info",
+                "status": "success",
+                "timestamp": "2026-07-24T12:00:00+00:00",
+                "platform": "Linux",
+                "data": {
+                    "hostname": "...",
+                    "operating_system": "...",
+                    "distribution_name": "...",
+                    "distribution_version": "...",
+                    "kernel_version": "...",
+                    "machine_architecture": "...",
+                    "cpu_architecture": "...",
+                    "python_version": "...",
+                    "platform_string": "...",
+                    "processor_name": "...",
+                },
+                "errors": [],
+            }
 
-    Raises:
-        OSError: If none of the system information sources are
-            reachable at all, indicating a broader environment failure.
+        On any non-Linux platform::
+
+            {
+                "collector": "system_info",
+                "status": "unsupported_platform",
+                "platform": "...",
+                "data": {},
+                "errors": ["Linux Insight Agent supports Linux only."],
+            }
+
+        A field that cannot be individually determined is set to
+        "Unknown" and a corresponding message is appended to
+        "errors", rather than the whole collection failing.
     """
-    try:
+    current_platform = platform.system()
+    if current_platform != "Linux":
         return {
-            "hostname": _safe_call(socket.gethostname),
-            "os": _safe_call(platform.system),
-            "os_version": _safe_call(platform.version),
-            "kernel_version": _safe_call(platform.release),
-            "architecture": _safe_call(platform.machine),
-            "processor": _get_processor_name(),
-            "platform": _safe_call(platform.platform),
-            "python_version": _safe_call(platform.python_version),
+            "collector": _COLLECTOR_NAME,
+            "status": "unsupported_platform",
+            "platform": current_platform,
+            "data": {},
+            "errors": ["Linux Insight Agent supports Linux only."],
         }
-    except OSError as error:
-        raise OSError(f"Failed to collect system information: {error}") from error
+
+    errors: List[str] = []
+    data = {
+        "hostname": _safe_get(socket.gethostname, "hostname", errors),
+        "operating_system": _safe_get(platform.system, "operating system", errors),
+        "distribution_name": None,
+        "distribution_version": None,
+        "kernel_version": _safe_get(
+            lambda: os.uname().release, "kernel version", errors
+        ),
+        "machine_architecture": _safe_get(
+            lambda: os.uname().machine, "machine architecture", errors
+        ),
+        "cpu_architecture": _safe_get(
+            lambda: platform.architecture()[0], "CPU architecture", errors
+        ),
+        "python_version": _safe_get(
+            platform.python_version, "Python version", errors
+        ),
+        "platform_string": _safe_get(platform.platform, "platform string", errors),
+        "processor_name": _get_processor_name(errors),
+    }
+    data["distribution_name"], data["distribution_version"] = _get_distribution_info(
+        errors
+    )
+
+    return {
+        "collector": _COLLECTOR_NAME,
+        "status": "success",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "platform": current_platform,
+        "data": data,
+        "errors": errors,
+    }
 
 
-def _get_processor_name() -> str:
-    """Determine the CPU model name, with a Linux-specific fallback.
-
-    ``platform.processor()`` is documented as returning the raw result
-    of ``uname -p``, but on most Linux distributions that value is not
-    populated by the kernel/libc and the call falls back to an empty
-    string (normalized to "Unknown" by some ``platform`` versions)
-    instead of an actual CPU model. To still report a meaningful value
-    on Linux, fall back to parsing the "model name" field out of
-    ``/proc/cpuinfo``, which the kernel always populates on x86/x86_64.
-
-    Returns:
-        The processor model name, or "unknown" if neither
-        ``platform.processor()`` nor ``/proc/cpuinfo`` yields one.
-    """
-    processor = _safe_call(platform.processor)
-    if processor.lower() != "unknown":
-        return processor
-
-    # platform.processor() came back empty/"Unknown" — read the CPU
-    # model directly from the kernel's /proc/cpuinfo instead.
-    try:
-        with open("/proc/cpuinfo", encoding="utf-8") as cpuinfo:
-            for line in cpuinfo:
-                if line.lower().startswith("model name"):
-                    _, _, value = line.partition(":")
-                    value = value.strip()
-                    if value:
-                        return value
-    except (OSError, UnicodeDecodeError):
-        pass
-
-    return "unknown"
-
-
-def _safe_call(func) -> str:
-    """Call a zero-argument info function, falling back to "unknown".
+def _safe_get(func: Callable[[], str], field_name: str, errors: List[str]) -> str:
+    """Call a zero-argument info function, recording an error on failure.
 
     Args:
         func: A zero-argument callable returning a string (e.g.
             ``platform.system``).
+        field_name: Human-readable name of the field being collected,
+            used in the error message if the call fails.
+        errors: Shared list that failure messages are appended to.
 
     Returns:
-        The callable's return value as a string, or "unknown" if the
+        The callable's return value as a string, or "Unknown" if the
         call raises an exception or returns an empty value.
     """
     try:
         value = func()
-        return str(value) if value else "unknown"
-    except (OSError, RuntimeError, ValueError):
-        return "unknown"
+    except (OSError, RuntimeError, ValueError) as error:
+        errors.append(f"Unable to determine {field_name}: {error}")
+        return "Unknown"
+    if not value:
+        errors.append(f"Unable to determine {field_name}.")
+        return "Unknown"
+    return str(value)
+
+
+def _get_processor_name(errors: List[str]) -> str:
+    """Determine the CPU model name, with a Linux-specific fallback.
+
+    ``platform.processor()`` is documented as returning the raw result
+    of ``uname -p``, but on most Linux distributions that value is not
+    populated by the kernel/libc and comes back empty (or "unknown").
+    To still report a meaningful value, fall back to parsing the
+    "model name" field out of ``/proc/cpuinfo``, which the kernel
+    always populates on x86/x86_64.
+
+    Args:
+        errors: Shared list that a failure message is appended to if
+            neither source yields a value.
+
+    Returns:
+        The processor model name, or "Unknown" if neither
+        ``platform.processor()`` nor ``/proc/cpuinfo`` yields one.
+    """
+    try:
+        processor = platform.processor()
+    except (OSError, RuntimeError):
+        processor = ""
+
+    if processor and processor.lower() != "unknown":
+        return processor
+
+    model_name = _read_cpuinfo_model_name()
+    if model_name:
+        return model_name
+
+    errors.append(
+        "Unable to determine processor name from platform.processor() "
+        "or /proc/cpuinfo."
+    )
+    return "Unknown"
+
+
+def _read_cpuinfo_model_name() -> Optional[str]:
+    """Read the CPU model name from ``/proc/cpuinfo``, if present.
+
+    Returns:
+        The value of the first "model name" field found, or ``None``
+        if the file is missing, unreadable, or has no such field.
+    """
+    if not _CPUINFO_PATH.is_file():
+        return None
+    try:
+        contents = _CPUINFO_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+    for line in contents.splitlines():
+        if line.lower().startswith("model name"):
+            _, _, value = line.partition(":")
+            value = value.strip()
+            if value:
+                return value
+    return None
+
+
+def _get_distribution_info(errors: List[str]) -> Tuple[str, str]:
+    """Read the Linux distribution name and version from ``/etc/os-release``.
+
+    Args:
+        errors: Shared list that a failure message is appended to if
+            the file is missing/unreadable or a field can't be found.
+
+    Returns:
+        A ``(distribution_name, distribution_version)`` tuple. Missing
+        fields fall back to "Unknown".
+    """
+    fields: Dict[str, str] = {}
+    if _OS_RELEASE_PATH.is_file():
+        try:
+            contents = _OS_RELEASE_PATH.read_text(encoding="utf-8")
+        except OSError as error:
+            errors.append(f"Unable to read /etc/os-release: {error}")
+            contents = ""
+        for line in contents.splitlines():
+            key, separator, value = line.partition("=")
+            if separator:
+                fields[key.strip()] = value.strip().strip('"')
+    else:
+        errors.append("/etc/os-release not found.")
+
+    name = fields.get("NAME") or "Unknown"
+    version = fields.get("VERSION_ID") or fields.get("VERSION") or "Unknown"
+
+    if name == "Unknown" or version == "Unknown":
+        errors.append(
+            "Distribution name/version could not be fully determined "
+            "from /etc/os-release."
+        )
+
+    return name, version
