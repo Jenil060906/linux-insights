@@ -1,5 +1,5 @@
-from collectors.system_info import collect_system_info
-
 from pprint import pprint
 
-pprint(collect_system_info())
+from collectors.cpu import collect_cpu_info
+
+pprint(collect_cpu_info())
