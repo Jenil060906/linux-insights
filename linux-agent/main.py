@@ -1,5 +1,5 @@
 from pprint import pprint
 
-from collectors.disk import collect_disk_info
+from collectors.network import collect_network_info
 
-pprint(collect_disk_info())
+pprint(collect_network_info())
