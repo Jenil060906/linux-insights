@@ -1,5 +1,5 @@
 from pprint import pprint
 
-from collectors.network import collect_network_info
+from collectors.process import collect_process_info
 
-pprint(collect_network_info())
+pprint(collect_process_info())
