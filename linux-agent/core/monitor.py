@@ -90,6 +90,13 @@ class Monitor:
                         ],
                         "failed_collectors": [],
                     },
+                    "monitoring": {
+                        "status": "success",
+                        "execution_time": 0.42,
+                        "successful_collectors": 6,
+                        "failed_collectors": 0,
+                        "total_collectors": 6,
+                    },
                     "collectors": {
                         "system_info": {...collector's own envelope...},
                         "cpu": {...},
@@ -100,13 +107,22 @@ class Monitor:
                     },
                 }
 
-            "metadata.execution_time_seconds" covers the entire cycle
-            (all six collectors), not any single one.
-            "summary.overall_status" is "success" only if every
-            collector reported its own "success" status; if one or
-            more did not (whether by returning a different status or
-            by raising an exception), it is "partial_success" and
-            those collectors' names appear in
+            "metadata" and "summary" are unchanged from earlier
+            versions of this snapshot shape (existing keys are never
+            renamed or removed). "monitoring" is an additional,
+            self-contained summary of the same cycle aimed at callers
+            that want plain counts and a short field name for elapsed
+            time, rather than "summary"'s list-of-names form — the two
+            sections describe the same run and are always consistent
+            with each other.
+
+            "execution_time_seconds"/"execution_time" both cover the
+            entire cycle (all six collectors), not any single one.
+            "overall_status"/"monitoring.status" are "success" only if
+            every collector reported its own "success" status; if one
+            or more did not (whether by returning a different status
+            or by raising an exception), both read "partial_success",
+            and those collectors' names appear in
             "summary.failed_collectors".
         """
         cycle_start = time.monotonic()
@@ -126,6 +142,7 @@ class Monitor:
 
         execution_time_seconds = time.monotonic() - cycle_start
         overall_status = "success" if not failed_collectors else "partial_success"
+        total_collectors = len(self._COLLECTORS)
 
         return {
             "metadata": {
@@ -134,9 +151,19 @@ class Monitor:
             },
             "summary": {
                 "overall_status": overall_status,
-                "total_collectors": len(self._COLLECTORS),
+                "total_collectors": total_collectors,
                 "successful_collectors": successful_collectors,
                 "failed_collectors": failed_collectors,
+            },
+            # Compact, count-based counterpart to "summary" above,
+            # added for callers that just want the headline numbers
+            # (e.g. a quick health check) without parsing name lists.
+            "monitoring": {
+                "status": overall_status,
+                "execution_time": execution_time_seconds,
+                "successful_collectors": len(successful_collectors),
+                "failed_collectors": len(failed_collectors),
+                "total_collectors": total_collectors,
             },
             "collectors": collector_results,
         }
