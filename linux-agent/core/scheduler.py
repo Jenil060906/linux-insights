@@ -5,13 +5,24 @@ Defines the :class:`Scheduler` class, which repeatedly runs a
 background thread, until explicitly stopped.
 
 ``Scheduler`` contains no collection or aggregation logic of its own —
-it only calls the ``Monitor`` it is given, on schedule. It never
-modifies the ``Monitor`` it wraps, never stores or inspects the
-snapshots ``Monitor.run()`` returns, and never logs, persists, or
-serves anything: pacing repeated collection is its one job. Scheduling
-policy (fixed interval, single active run loop) and pacing primitives
-(``threading.Thread``, ``threading.Event``, ``time.sleep()``) are the
-extent of what this module is responsible for.
+it only calls the ``Monitor`` it is given, on schedule, and forwards
+each successful cycle's snapshot to an injected
+:class:`~core.snapshot.SnapshotManager`. It never modifies the
+``Monitor`` it wraps, never constructs its own
+``SnapshotManager`` (one is always supplied by the caller), and never
+logs, persists to a database, or serves anything: pacing repeated
+collection and keeping the latest snapshot available is the extent of
+what this module is responsible for. Scheduling policy (fixed
+interval, single active run loop) and pacing primitives
+(``threading.Thread``, ``threading.Event``, ``time.sleep()``) round
+out its responsibilities.
+
+Each successful cycle also prints a short, three-line developer-facing
+summary (cycle number, then whatever `SnapshotManager.update_snapshot`
+itself prints, then overall status) — plain `print()` calls only, no
+logging framework, and never the full snapshot. This is console
+feedback for testing, not a change to what the Scheduler decides or
+does.
 """
 
 import threading
@@ -19,15 +30,18 @@ import time
 from typing import Optional
 
 from core.monitor import Monitor
+from core.snapshot import SnapshotManager
 
 
 class Scheduler:
     """Runs a `Monitor` repeatedly, on a fixed interval, until stopped.
 
-    Each cycle is: call ``monitor.run()``, then ``time.sleep()`` for
-    the configured interval, then repeat — until :meth:`stop` is
-    called. The cycle runs in a background `threading.Thread` so
-    :meth:`start` returns immediately to the caller.
+    Each cycle is: call ``monitor.run()``, hand its result to the
+    injected `SnapshotManager` via ``update_snapshot()``, then
+    ``time.sleep()`` for the configured interval, then repeat — until
+    :meth:`stop` is called. The cycle runs in a background
+    `threading.Thread` so :meth:`start` returns immediately to the
+    caller.
 
     At most one `Scheduler` instance may be running at a time across
     the whole process: calling :meth:`start` while another instance is
@@ -39,7 +53,11 @@ class Scheduler:
 
     Usage::
 
-        scheduler = Scheduler(monitor=Monitor(), interval_seconds=30)
+        scheduler = Scheduler(
+            monitor=Monitor(),
+            snapshot_manager=SnapshotManager(),
+            interval_seconds=30,
+        )
         scheduler.start()
         ...
         scheduler.stop()  # blocks until the background loop exits
@@ -52,13 +70,27 @@ class Scheduler:
     _active_scheduler: Optional["Scheduler"] = None
     _class_lock: threading.Lock = threading.Lock()
 
-    def __init__(self, monitor: Monitor, interval_seconds: float) -> None:
+    def __init__(
+        self,
+        monitor: Monitor,
+        snapshot_manager: SnapshotManager,
+        interval_seconds: float,
+    ) -> None:
         """Create a Scheduler for a given Monitor and refresh interval.
+
+        Both collaborators are supplied by the caller (dependency
+        injection) — the Scheduler never constructs its own `Monitor`
+        or `SnapshotManager`, so callers can share, pre-configure, or
+        substitute either independently of this class.
 
         Args:
             monitor: The `Monitor` instance to run repeatedly. The
                 Scheduler only ever calls `monitor.run()` — it never
                 modifies, reconfigures, or replaces this object.
+            snapshot_manager: The `SnapshotManager` that each cycle's
+                snapshot is handed to via `update_snapshot()`, after
+                that cycle completes successfully. The Scheduler never
+                reads from it, only writes to it.
             interval_seconds: How long to sleep between the end of one
                 monitoring cycle and the start of the next, in
                 seconds. Must be a positive number.
@@ -70,6 +102,7 @@ class Scheduler:
             raise ValueError("interval_seconds must be a positive number.")
 
         self._monitor = monitor
+        self._snapshot_manager = snapshot_manager
         self._interval_seconds = interval_seconds
 
         # Set by stop() to signal the background loop to exit at its
@@ -87,6 +120,12 @@ class Scheduler:
         # liveness. Reads/writes are guarded by `_state_lock`.
         self._running = False
         self._state_lock = threading.Lock()
+
+        # 1-based count of successful cycles in the current run, used
+        # only for the "Monitoring Cycle N" console line. Reset on
+        # each start() so a fresh run always begins counting at 1.
+        # Purely cosmetic — no scheduling decision depends on it.
+        self._cycle_count = 0
 
     def start(self) -> None:
         """Start running the Monitor repeatedly, in a background thread.
@@ -119,6 +158,7 @@ class Scheduler:
 
             self._stop_event.clear()
             self._running = True
+            self._cycle_count = 0
             self._thread = threading.Thread(
                 target=self._run_loop,
                 name="linux-insight-scheduler",
@@ -167,20 +207,39 @@ class Scheduler:
         between cycles rather than mid-collection.
 
         A `Monitor.run()` call is not expected to raise — it already
-        isolates every individual collector's failures internally —
-        but this loop guards against it anyway (without logging or
-        storing anything about the failure, per this module's
-        constraints) so one unexpected exception can never silently
-        kill the scheduling loop.
+        isolates every individual collector's failures internally, so
+        even a cycle with one or more failed collectors still returns
+        a snapshot rather than raising — but this loop guards against
+        an exception anyway (without logging or storing anything
+        about the failure, per this module's constraints) so one
+        unexpected exception can never silently kill the scheduling
+        loop. A cycle only counts as "successful" here if
+        `monitor.run()` returns normally; only then is its snapshot
+        handed to the `SnapshotManager`, its console summary printed,
+        and the cycle counter advanced — a cycle that raised produces
+        no output at all and never overwrites the last good snapshot.
         """
         try:
             while not self._stop_event.is_set():
                 try:
-                    # The Scheduler's only interaction with Monitor:
-                    # trigger one cycle. The returned snapshot is
-                    # intentionally discarded — this module never
-                    # stores, inspects, or forwards it.
-                    self._monitor.run()
+                    # The Scheduler's interaction with its two
+                    # collaborators, once per cycle: trigger a
+                    # Monitor run, then hand the resulting snapshot to
+                    # the SnapshotManager. The snapshot itself is
+                    # never printed or stored anywhere else by this
+                    # class — only its overall status is read, for
+                    # the console line below.
+                    snapshot = self._monitor.run()
+
+                    self._cycle_count += 1
+                    print(f"Monitoring Cycle {self._cycle_count}")
+
+                    # SnapshotManager.update_snapshot() prints its own
+                    # "Snapshot Updated" line as part of this call.
+                    self._snapshot_manager.update_snapshot(snapshot)
+
+                    status = snapshot.get("monitoring", {}).get("status", "Unknown")
+                    print(f"Status: {status}")
                 except Exception:  # noqa: BLE001 - must not kill the loop
                     pass
 

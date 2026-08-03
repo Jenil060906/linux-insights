@@ -117,6 +117,18 @@ Any value that can't be determined falls back to `"unknown"` rather than raising
 - Cache the result for the agent's lifetime, since this data is static per run.
 - Add unit tests with mocked `platform`/`socket` calls to cover the `"unknown"` fallback path.
 
+## Snapshot Manager
+
+`core/snapshot.py` implements `SnapshotManager` — a thread-safe, in-memory holder for exactly one snapshot at a time. Full details (architecture, data flow, thread safety, lifecycle) live in [`docs/snapshot.md`](docs/snapshot.md).
+
+**Why snapshots exist.** Collecting host metrics and reading them back are two different concerns happening on two different schedules — a `Monitor` cycle runs periodically in the background, while anything that wants "the current state of the host" needs it on demand, right now. A snapshot is the hand-off point between those two: one complete, self-sufficient, point-in-time reading of the whole host, so a reader never has to know how or when it was produced.
+
+**How they interact with the Monitor.** A snapshot *is* whatever `Monitor.run()` returns — `SnapshotManager` doesn't build, transform, or reinterpret it in any way. It simply stores the exact dictionary it's given via `update_snapshot()` and hands back an identical copy on request.
+
+**How the Scheduler updates them.** `SnapshotManager` is injected into the `Scheduler` at construction (the `Scheduler` never creates its own). After every monitoring cycle that completes without raising, the `Scheduler` calls `monitor.run()` and immediately passes the result to `snapshot_manager.update_snapshot(snapshot)` — so the stored snapshot is refreshed automatically on the same fixed interval the `Scheduler` already runs on, with no separate wiring required.
+
+**Why only the latest snapshot is stored.** `SnapshotManager` models *current state*, not history — the same way a gauge shows its latest reading rather than a log of every past one. Each new snapshot fully replaces the previous one, which keeps memory usage constant no matter how long the agent runs, and matches how the rest of the agent already treats a snapshot: a complete reading in its own right, not one entry in a growing series.
+
 ## Status
 
 Project skeleton only. No monitoring code has been written.
