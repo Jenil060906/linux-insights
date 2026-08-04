@@ -129,6 +129,26 @@ Any value that can't be determined falls back to `"unknown"` rather than raising
 
 **Why only the latest snapshot is stored.** `SnapshotManager` models *current state*, not history — the same way a gauge shows its latest reading rather than a log of every past one. Each new snapshot fully replaces the previous one, which keeps memory usage constant no matter how long the agent runs, and matches how the rest of the agent already treats a snapshot: a complete reading in its own right, not one entry in a growing series.
 
+## Configuration Manager
+
+`config/config_loader.py` and `config/validator.py` implement the Configuration Manager — reading `config.yaml` into a `Config` object and validating the values the rest of the agent depends on. Full details (structure, loading process, validation rules) live in [`docs/configuration.md`](docs/configuration.md).
+
+**Why configuration is externalized.** Things like an agent's identity, how often it monitors the host, and which collectors it runs vary per deployment — they shouldn't require editing Python source to change. Externalizing them into `config.yaml` means an operator can change that behavior per host, and gives every component one shared place to get its settings from, instead of each one hardcoding its own.
+
+**Current configuration options.**
+
+| Option | Required | Description |
+|---|---|---|
+| `agent.id` | Yes | Stable, unique identifier for this agent instance. |
+| `agent.hostname` | No | Network hostname of the monitored host; auto-detected via `socket.gethostname()` at load time if left blank. |
+| `agent.location` | No | Free-form, human-readable label for this host's location. |
+| `scheduler.refresh_interval` | Yes | Seconds between the end of one monitoring cycle and the start of the next. |
+| `monitoring.enabled_collectors` | Yes | Which collectors the Monitor runs; every name must match an existing collector. |
+
+**How the Scheduler uses the refresh interval.** Configuration is loaded and validated once, at application startup — not inside the Scheduler itself. The resulting `scheduler.refresh_interval` value is then passed into `Scheduler`'s `interval_seconds` constructor argument via dependency injection, the same way its `Monitor` and `SnapshotManager` are supplied. The Scheduler never reads `config.yaml` or hardcodes an interval of its own — it only knows the number it was given.
+
+**How future components will use the same configuration system.** Any future component that needs configurable behavior follows the same pattern: load `config.yaml` through `config_loader.load_config()`, validate whatever it needs (via `validator.py`'s existing checks, or additional ones added the same way), and receive the resulting values through constructor injection at startup, just like the Scheduler does today. New top-level sections can be added to `config.yaml` for those components without needing to change the sections already there.
+
 ## Status
 
 Project skeleton only. No monitoring code has been written.

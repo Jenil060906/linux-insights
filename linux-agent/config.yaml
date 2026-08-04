@@ -1,0 +1,51 @@
+# Linux Insight Agent — runtime configuration.
+#
+# Defines the configuration for a single agent instance. Only the
+# settings the current implementation actually uses are included
+# here — sections for features that don't exist yet (an API server,
+# a database, log forwarding, a dashboard, predictive analysis, etc.)
+# are intentionally left out rather than guessed at in advance. New
+# top-level sections can be added later as those features land,
+# without needing to change the ones already here.
+#
+# The values below are sensible defaults for a single-host setup;
+# override them per deployment as needed.
+
+# Identity of this agent instance.
+agent:
+  # Stable, unique identifier for this agent (e.g. a UUID), used to
+  # tell multiple agents apart. Mandatory — config/validator.py
+  # rejects configuration with a blank or missing id, so a real value
+  # must be assigned per deployment.
+  id: linux-agent-001
+
+  # Network hostname of the monitored host. Optional — if left blank
+  # or omitted, config/config_loader.py automatically fills this in
+  # with socket.gethostname() while loading the file; set this only
+  # to override that automatic detection.
+  hostname: linuxcoldware
+
+  # Free-form, human-readable label for this host's location (e.g. a
+  # datacenter, rack, or region). Purely descriptive; optional.
+  location: development
+
+# Controls how often the Monitor is run (see core/scheduler.py).
+scheduler:
+  # Seconds between the end of one monitoring cycle and the start of
+  # the next. Must be a positive number.
+  refresh_interval: 5
+  
+# Controls which collectors the Monitor runs (see core/monitor.py).
+monitoring:
+  # Collectors to run, in the fixed order Monitor always executes
+  # them in: system_info -> cpu -> memory -> disk -> network ->
+  # process. All six are enabled by default, matching every collector
+  # that currently exists under collectors/. Remove an entry to skip
+  # that collector.
+  enabled_collectors:
+    - system_info
+    - cpu
+    - memory
+    - disk
+    - network
+    - process
