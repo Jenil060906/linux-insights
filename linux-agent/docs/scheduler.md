@@ -72,6 +72,7 @@ flowchart TD
 - An explicit `_running` boolean, separate from the stop event, tracks whether the loop is actually active. It's set by the background thread itself at the start and end of its run (in a `finally` block, so it's always accurate even if something inside the loop misbehaves), and read through `is_running()`.
 - A process-wide class-level lock and a class-level "active scheduler" slot enforce that only one `Scheduler` instance — across all instances, not just this one — can be running at any given time; a `start()` call that would violate this raises `RuntimeError` instead of silently starting a second, competing loop.
 - A per-instance lock guards `_running` and the "already running" check in `start()`, so concurrent calls from different threads can't race past the check.
+- `_cycle_count`, the counter behind the "Monitoring Cycle N" console line, is deliberately left unguarded by a lock. This is safe under the current architecture because each `Scheduler` instance is driven by exactly one dedicated worker thread — the one background thread `start()` creates — so `_cycle_count` is only ever read or written from that single thread, with no concurrent access to synchronize against. This is a property of the current design, not an oversight: if a future version allowed multiple worker threads to drive a single `Scheduler` instance concurrently, this assumption would break, and `_cycle_count` would need explicit synchronization (e.g. reusing `_state_lock`) or an atomic counter to remain correct.
 
 ## Current Limitations
 
