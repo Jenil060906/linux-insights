@@ -125,6 +125,20 @@ class Scheduler:
         # only for the "Monitoring Cycle N" console line. Reset on
         # each start() so a fresh run always begins counting at 1.
         # Purely cosmetic — no scheduling decision depends on it.
+        #
+        # Intentionally not guarded by a lock. This is safe under the
+        # current architecture because each Scheduler instance's
+        # monitoring loop runs on exactly one dedicated background
+        # thread (see _run_loop, started by start()), and
+        # _cycle_count is only ever read or written from within that
+        # same thread — there is no concurrent access to synchronize
+        # against. This single-worker-thread-per-instance assumption
+        # is part of the current design, not an oversight. If a
+        # future version ever allowed multiple worker threads to
+        # drive a single Scheduler instance concurrently, that
+        # assumption would no longer hold, and _cycle_count would
+        # need explicit synchronization (e.g. reusing _state_lock) or
+        # an atomic counter to stay correct.
         self._cycle_count = 0
 
     def start(self) -> None:
@@ -231,6 +245,10 @@ class Scheduler:
                     # the console line below.
                     snapshot = self._monitor.run()
 
+                    # Safe without a lock: this loop is this
+                    # instance's single dedicated worker thread. See
+                    # _cycle_count's declaration in __init__ for the
+                    # full rationale.
                     self._cycle_count += 1
                     print(f"Monitoring Cycle {self._cycle_count}")
 

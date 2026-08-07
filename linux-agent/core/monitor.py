@@ -1,7 +1,8 @@
 """Monitor module.
 
-Defines the :class:`Monitor` class, which orchestrates every collector
-in ``collectors/`` into a single, unified snapshot of the host.
+Defines the :class:`Monitor` class, which orchestrates a set of
+collectors from ``collectors/`` into a single, unified snapshot of the
+host.
 
 ``Monitor`` contains no collection logic of its own — it imports and
 calls each collector's existing, independent entry-point function
@@ -11,11 +12,23 @@ summary. It deliberately does not implement scheduling, persistence,
 caching, an API, logging, or any predictive/analysis logic: it runs
 exactly one monitoring cycle per call to :meth:`Monitor.run` and
 returns the result, leaving everything else to other layers.
+
+``Monitor`` is also configuration-agnostic: it never imports
+`config.yaml`, never imports anything from the ``config`` package, and
+has no notion that a Configuration Manager exists. Which collectors an
+instance runs can optionally be narrowed at construction time (see
+:meth:`Monitor.__init__`), but that list is handed to it as plain
+``(name, function)`` pairs — ``Monitor`` neither knows nor cares
+whether that list came from its own full built-in registry or was
+filtered down by something else beforehand. Deciding *which*
+collectors should run based on configuration is the composition
+layer's job (see `core.collector_selection.resolve_enabled_collectors`
+and `core.engine.MonitoringEngine`), not `Monitor`'s.
 """
 
 import time
 from datetime import datetime, timezone
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from collectors.cpu import collect_cpu_info
 from collectors.disk import collect_disk_info
@@ -31,30 +44,43 @@ CollectorFunction = Callable[[], Dict[str, object]]
 
 
 class Monitor:
-    """Orchestrates all Linux Insight collectors into one host snapshot.
+    """Orchestrates a set of Linux Insight collectors into one host snapshot.
 
-    ``Monitor`` runs each registered collector in a fixed order,
-    tolerates any individual collector failing — whether by returning
-    a non-"success" status or by raising an unhandled exception —
-    without that stopping the remaining collectors from running, and
-    combines every result into a single snapshot dictionary.
+    ``Monitor`` runs each of its registered collectors in a fixed
+    order, tolerates any individual collector failing — whether by
+    returning a non-"success" status or by raising an unhandled
+    exception — without that stopping the remaining collectors from
+    running, and combines every result into a single snapshot
+    dictionary.
 
     Usage::
 
-        snapshot = Monitor().run()
+        snapshot = Monitor().run()  # runs every collector that exists
+
+        # Or, to run only a subset (order is still Monitor's own
+        # fixed order, not the order passed in):
+        subset = tuple(
+            pair for pair in Monitor._COLLECTORS if pair[0] in {"cpu", "memory"}
+        )
+        snapshot = Monitor(collectors=subset).run()
 
     The class holds no mutable instance state between calls; each
     call to :meth:`run` performs one independent, self-contained
     monitoring cycle.
     """
 
-    # Collectors to run, in the fixed order used throughout this
-    # project's documentation: System -> CPU -> Memory -> Disk ->
-    # Network -> Process. Each entry pairs the stable name a
-    # collector is reported under (in the summary and the
-    # "collectors" section) with its public, zero-argument entry
-    # point. Collector modules themselves are never modified here —
-    # this list only references their existing public functions.
+    # The full registry of every collector that exists in this
+    # project, in the fixed order used throughout this project's
+    # documentation: System -> CPU -> Memory -> Disk -> Network ->
+    # Process. Each entry pairs the stable name a collector is
+    # reported under (in the summary and the "collectors" section)
+    # with its public, zero-argument entry point. Collector modules
+    # themselves are never modified here — this list only references
+    # their existing public functions. This is Monitor's default
+    # collector list; a specific instance may be constructed with a
+    # narrower one (see __init__), but this class-level registry
+    # always describes every collector that exists, regardless of
+    # what any one instance was built to run.
     _COLLECTORS: Tuple[Tuple[str, CollectorFunction], ...] = (
         ("system_info", collect_system_info),
         ("cpu", collect_cpu_info),
@@ -64,14 +90,41 @@ class Monitor:
         ("process", collect_process_info),
     )
 
-    def run(self) -> Dict[str, object]:
-        """Run one full monitoring cycle across every registered collector.
+    def __init__(
+        self,
+        collectors: Optional[Sequence[Tuple[str, CollectorFunction]]] = None,
+    ) -> None:
+        """Create a Monitor, optionally running only a subset of collectors.
 
-        Collectors are executed sequentially, in the fixed order
-        defined by :attr:`_COLLECTORS`. The total wall-clock duration
-        of the whole cycle is measured with a monotonic clock (immune
-        to system-clock adjustments mid-run), independently of the
-        wall-clock timestamp recorded for the snapshot itself.
+        Args:
+            collectors: The ``(name, function)`` pairs this instance
+                should run each cycle, in the order they'll execute.
+                Defaults to ``Monitor``'s full built-in registry
+                (:attr:`_COLLECTORS` — every collector that exists)
+                when not given, which reproduces this class's
+                original, unconditional behavior exactly. ``Monitor``
+                does not interpret, validate, or care where this list
+                came from — it only ever sees plain collector
+                functions, never configuration. Narrowing this list
+                based on `monitoring.enabled_collectors` is the
+                composition layer's responsibility (see
+                `core.collector_selection.resolve_enabled_collectors`),
+                not `Monitor`'s.
+        """
+        self._collectors: Tuple[Tuple[str, CollectorFunction], ...] = (
+            tuple(collectors) if collectors is not None else self._COLLECTORS
+        )
+
+    def run(self) -> Dict[str, object]:
+        """Run one full monitoring cycle across this instance's collectors.
+
+        Collectors are executed sequentially, in the order this
+        instance was constructed with (see :meth:`__init__`) — every
+        collector that exists, unless a narrower list was injected.
+        The total wall-clock duration of the whole cycle is measured
+        with a monotonic clock (immune to system-clock adjustments
+        mid-run), independently of the wall-clock timestamp recorded
+        for the snapshot itself.
 
         Returns:
             A dictionary shaped like::
@@ -117,12 +170,16 @@ class Monitor:
             with each other.
 
             "execution_time_seconds"/"execution_time" both cover the
-            entire cycle (all six collectors), not any single one.
-            "overall_status"/"monitoring.status" are "success" only if
-            every collector reported its own "success" status; if one
-            or more did not (whether by returning a different status
-            or by raising an exception), both read "partial_success",
-            and those collectors' names appear in
+            entire cycle (every collector this instance runs), not any
+            single one. The example above assumes the default, full
+            collector set (six); an instance constructed with a
+            narrower `collectors` list reports counts and names
+            reflecting only that subset. "overall_status"/
+            "monitoring.status" are "success" only if every collector
+            *this instance runs* reported its own "success" status; if
+            one or more did not (whether by returning a different
+            status or by raising an exception), both read
+            "partial_success", and those collectors' names appear in
             "summary.failed_collectors".
         """
         cycle_start = time.monotonic()
@@ -131,7 +188,7 @@ class Monitor:
         successful_collectors: List[str] = []
         failed_collectors: List[str] = []
 
-        for name, collector_function in self._COLLECTORS:
+        for name, collector_function in self._collectors:
             result = self._run_collector(name, collector_function)
             collector_results[name] = result
 
@@ -142,7 +199,7 @@ class Monitor:
 
         execution_time_seconds = time.monotonic() - cycle_start
         overall_status = "success" if not failed_collectors else "partial_success"
-        total_collectors = len(self._COLLECTORS)
+        total_collectors = len(self._collectors)
 
         return {
             "metadata": {

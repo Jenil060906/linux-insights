@@ -86,6 +86,16 @@ All four exceptions share a common base, `ValidationError`, so a caller that doe
 
 "Known collectors" is not a separately-maintained list — it's read directly from the [Monitor](monitor.md)'s own collector registry, so this check can never drift out of sync with the collectors that actually exist under `collectors/`.
 
+## Collector Selection at Startup
+
+`monitoring.enabled_collectors` is honored, but not by `validate_config` or by [Monitor](monitor.md) itself — filtering happens at the composition layer, one step later, so `Monitor` never needs to know configuration exists:
+
+1. `validate_config` (above) confirms the list is non-empty and every name is a real collector.
+2. `core.collector_selection.resolve_enabled_collectors` cross-references those names against `Monitor`'s own collector registry and returns the matching `(name, function)` pairs, in `Monitor`'s fixed execution order — not the order configuration lists them in.
+3. [`core.engine.MonitoringEngine.from_config`](monitor.md#collector-selection) passes that resolved list into `Monitor`'s constructor (`Monitor(collectors=...)`) — plain dependency injection, the same pattern used for `Scheduler`'s refresh interval.
+
+A collector left out of `enabled_collectors` never runs and never appears in the resulting snapshot at all. See [`docs/monitor.md`](monitor.md#collector-selection) for the full mechanism and a diagram.
+
 ## Current Supported Options
 
 | Option | Type | Required | Default behavior | Description |

@@ -11,11 +11,18 @@ collection, or storage logic of its own. Its only job is composition:
 building each collaborator, wiring them together via dependency
 injection exactly as they already require (a `Scheduler` still only
 ever receives a `Monitor`, a `SnapshotManager`, and an interval
-through its constructor; a `Monitor` still only ever runs the
-collectors it always has; a `SnapshotManager` still only ever stores
+through its constructor; a `SnapshotManager` still only ever stores
 one snapshot at a time), and exposing a small facade
 (`start`/`stop`/`is_running`/`get_latest_snapshot`) so a caller never
 needs to construct or wire these four pieces by hand.
+
+This is also the one place `monitoring.enabled_collectors` is
+consulted: `from_config` resolves it (via
+`core.collector_selection.resolve_enabled_collectors`) into the
+concrete collectors to run, and injects that list into `Monitor`'s
+constructor. `Monitor` itself still runs whatever collector list it
+was constructed with, unconditionally — it has no idea that list was
+filtered from configuration, or that configuration exists at all.
 """
 
 from pathlib import Path
@@ -23,6 +30,7 @@ from typing import Optional, Union
 
 from config.config_loader import Config, load_config
 from config.validator import validate_config
+from core.collector_selection import resolve_enabled_collectors
 from core.monitor import Monitor
 from core.scheduler import Scheduler
 from core.snapshot import Snapshot, SnapshotManager
@@ -100,24 +108,50 @@ class MonitoringEngine:
     def from_config(cls, config: Config) -> "MonitoringEngine":
         """Build a fully-wired engine from an already-validated `Config`.
 
-        Reads only `scheduler.refresh_interval` from `config` — this
-        is where "the Scheduler receives configuration through
-        dependency injection" actually happens: the interval is read
-        once, here, and passed into `Scheduler`'s constructor, rather
-        than the `Scheduler` ever reading configuration itself.
+        This is where configuration actually reaches the components
+        that need it, entirely through constructor injection —
+        neither `Monitor` nor `Scheduler` ever reads `config` (or any
+        configuration) itself:
+
+        - `monitoring.enabled_collectors` is resolved (via
+          `core.collector_selection.resolve_enabled_collectors`) into
+          the concrete collector functions to run, and that list is
+          passed into `Monitor`'s constructor. `Monitor` only ever
+          sees plain `(name, function)` pairs — it has no idea they
+          came from configuration.
+        - `scheduler.refresh_interval` is read once and passed into
+          `Scheduler`'s constructor.
 
         Args:
             config: A `Config` that has already been passed to
                 `config.validator.validate_config` without raising.
-                This method does not validate it again.
+                This method does not validate it again, though
+                resolving the collector list still independently
+                raises if it can't produce a usable result (see
+                `resolve_enabled_collectors`) — so calling this
+                directly with an unvalidated `Config` fails safely
+                rather than silently running zero or unknown
+                collectors.
 
         Returns:
-            A `MonitoringEngine` with a fresh `Monitor`,
-            `SnapshotManager`, and `Scheduler` — the `Scheduler`
-            already wired to that `Monitor` and `SnapshotManager`,
-            using the configured refresh interval.
+            A `MonitoringEngine` with a fresh `Monitor` (running only
+            the configured, enabled collectors), `SnapshotManager`,
+            and `Scheduler` — the `Scheduler` already wired to that
+            `Monitor` and `SnapshotManager`, using the configured
+            refresh interval.
+
+        Raises:
+            config.validator.UnknownCollectorError: If
+                `monitoring.enabled_collectors` names a collector that
+                doesn't exist.
+            config.validator.InvalidEnabledCollectorsError: If
+                resolving `monitoring.enabled_collectors` leaves no
+                collectors to run.
         """
-        monitor = Monitor()
+        enabled_collector_names = config.get("monitoring")["enabled_collectors"]
+        collectors = resolve_enabled_collectors(enabled_collector_names)
+
+        monitor = Monitor(collectors=collectors)
         snapshot_manager = SnapshotManager()
         scheduler = Scheduler(
             monitor=monitor,
