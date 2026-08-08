@@ -1,17 +1,24 @@
-"""Linux Agent startup script.
+"""Linux Agent + API startup script — TEMPORARY, for local API testing.
 
-This is the agent's startup script for Phase 2 — it loads and
-validates configuration, builds a fully-wired `core.engine.
-MonitoringEngine` (Monitor, SnapshotManager, and Scheduler, with
-dependencies injected between them), starts it, and displays a
-summary of the latest snapshot once monitoring has run.
+Unlike earlier versions of this script (which ran the agent for
+exactly three monitoring cycles and then stopped automatically, purely
+to test `core.engine.MonitoringEngine` in isolation), this version
+runs the agent and the FastAPI API together, in the same process, for
+as long as the API server is up: it loads and validates configuration,
+builds a `MonitoringEngine`, attaches its `SnapshotManager` and
+`Config` to the FastAPI application's state (see
+`api/dependencies.py`, whose dependency providers read them from
+there), starts the Scheduler running indefinitely, and then serves the
+API with Uvicorn until the process is stopped (e.g. Ctrl+C).
 
-It is still **temporary**: Phase 2 hardcodes the run to exactly three
-monitoring cycles before stopping automatically, purely so this
-script terminates on its own during development, with no infinite
-loop and no reliance on a manual interrupt (e.g. Ctrl+C). A later
-phase is expected to replace this fixed-cycle-count behavior with
-continuous operation.
+Everything runs in one process deliberately: the Scheduler's
+background thread and the API's request handlers need to share the
+exact same `SnapshotManager` instance for the API to ever reflect a
+real monitoring cycle, and in-memory objects can't be shared across
+separate processes. This script never constructs its own FastAPI
+application, adds routes, or otherwise duplicates `api/app.py`'s job
+— it only imports the application `api/app.py` already builds
+(title, version, routers, and all) and hands it to Uvicorn to serve.
 
 If configuration is missing required values (e.g. a blank `agent.id`
 or `agent.hostname`), loading/validation raises and this script exits
@@ -20,20 +27,32 @@ configuration — validation failures are intentionally not caught or
 suppressed here.
 """
 
-import threading
+import uvicorn
+from fastapi import FastAPI
 
+from api.app import app as fastapi_app
 from core.engine import MonitoringEngine
 
-# Number of monitoring cycles to allow before stopping the Scheduler.
-# Temporary, for Phase 2 testing only (see module docstring).
-_TARGET_CYCLES = 3
+# Local-testing defaults only. Not read from configuration — config.yaml
+# has no API host/port section (see docs/configuration.md) — since this
+# script exists solely for manual API testing during development.
+_API_HOST = "127.0.0.1"
+_API_PORT = 8000
 
 
 def main() -> None:
-    """Run the Phase 2 startup sequence: build, run, summarize."""
+    """Start the agent and serve the API together until interrupted."""
     engine = _startup()
-    _run_for_target_cycles(engine)
-    _display_snapshot_summary(engine)
+    _inject_dependencies(fastapi_app, engine)
+
+    engine.start()
+    print("Scheduler Started")
+
+    try:
+        _serve_api(fastapi_app)
+    finally:
+        engine.stop()
+        print("Scheduler Stopped")
 
 
 def _startup() -> MonitoringEngine:
@@ -46,123 +65,56 @@ def _startup() -> MonitoringEngine:
     together via dependency injection (the `Scheduler` receives the
     `Monitor`, the `SnapshotManager`, and the configured refresh
     interval — it never constructs or looks up any of them itself).
-    This function adds nothing to that sequence; it only prints a
-    short confirmation of what was loaded.
 
     Returns:
         A `MonitoringEngine` ready to be started.
     """
     engine = MonitoringEngine.bootstrap()
     print("Configuration Loaded")
-    _print_configuration_summary(engine)
-    return engine
 
-
-def _print_configuration_summary(engine: MonitoringEngine) -> None:
-    """Print the agent identity and scheduling values that were loaded.
-
-    Args:
-        engine: A `MonitoringEngine` built via `MonitoringEngine.
-            bootstrap`, so `engine.config` is populated.
-    """
     agent = engine.config.get("agent")
     scheduler_settings = engine.config.get("scheduler")
-
     print(f"{'Agent ID':<18}: {agent['id']}")
     print(f"{'Hostname':<18}: {agent['hostname']}")
     print(f"{'Refresh Interval':<18}: {scheduler_settings['refresh_interval']}")
 
+    return engine
 
-def _run_for_target_cycles(engine: MonitoringEngine) -> None:
-    """Start the Scheduler, let it complete exactly `_TARGET_CYCLES`, then stop it.
 
-    Neither `Monitor` nor `Scheduler` (and so neither does
-    `MonitoringEngine`, which only delegates to them) expose a "run N
-    cycles and stop" mode or any progress callback on their own (by
-    design — see their own docstrings), so this function counts
-    completed cycles itself by wrapping `monitor.run` on the engine's
-    own `Monitor` instance (reached via `MonitoringEngine.monitor`).
-    The wrapper still calls the real `run()` for every cycle and
-    returns its result unchanged; it only adds counting around it.
-    This does not modify `Monitor`, `Scheduler`, or `MonitoringEngine`
-    themselves — only this one instance's bound method is replaced.
+def _inject_dependencies(fastapi_app: FastAPI, engine: MonitoringEngine) -> None:
+    """Attach the engine's SnapshotManager and Config to the FastAPI app.
+
+    This is the one place configuration and the live `SnapshotManager`
+    reach the API: `api/dependencies.py`'s `get_snapshot_manager` and
+    `get_config` providers read exactly these two attributes off
+    `request.app.state`. Route handlers never construct either
+    themselves.
 
     Args:
-        engine: The `MonitoringEngine` to start and stop.
+        fastapi_app: The FastAPI application to attach state to — the
+            same instance Uvicorn will go on to serve.
+        engine: The `MonitoringEngine` whose `SnapshotManager` and
+            `Config` should be exposed to the API.
     """
-    cycles_completed = 0
-    cycles_lock = threading.Lock()
-    # Set once the target cycle count has been reached, so the main
-    # thread has something bounded to wait on instead of polling.
-    target_reached = threading.Event()
-
-    original_run = engine.monitor.run
-
-    def counting_run() -> dict:
-        """Run one real monitoring cycle, then count it."""
-        nonlocal cycles_completed
-        result = original_run()
-
-        with cycles_lock:
-            cycles_completed += 1
-            completed_count = cycles_completed
-
-        if completed_count >= _TARGET_CYCLES:
-            target_reached.set()
-
-        return result
-
-    engine.monitor.run = counting_run
-
-    engine.start()
-    print("Scheduler Started")
-
-    # Block until the target cycle count has been reached. This is a
-    # single bounded wait on an event set by the cycle-counting
-    # wrapper above — not a loop, and not dependent on manual
-    # interruption.
-    target_reached.wait()
-
-    # stop() blocks until the background loop has fully exited, so the
-    # SnapshotManager is guaranteed to already hold the last cycle's
-    # snapshot by the time this call returns.
-    engine.stop()
-    print("Scheduler Stopped")
+    fastapi_app.state.snapshot_manager = engine.snapshot_manager
+    fastapi_app.state.config = engine.config
 
 
-def _display_snapshot_summary(engine: MonitoringEngine) -> None:
-    """Print a short summary of the latest snapshot — not the whole thing.
+def _serve_api(fastapi_app: FastAPI) -> None:
+    """Serve the FastAPI application with Uvicorn until interrupted.
 
-    Reads only the specific fields needed for this summary
-    (timestamp, overall status, and collector counts) via
-    `MonitoringEngine`'s own accessors; the full snapshot dictionary
-    (collector-level data, etc.) is never printed.
+    Blocks the calling thread for as long as the server runs. The
+    Scheduler keeps running independently on its own background
+    thread the entire time, continuing to update the `SnapshotManager`
+    the API reads from on every request — this is what makes the API
+    reflect live monitoring data rather than a single static snapshot.
 
     Args:
-        engine: The `MonitoringEngine` that was running throughout
-            this script.
+        fastapi_app: The FastAPI application to serve — built entirely
+            by `api/app.py`. This function only hands it to Uvicorn;
+            it never builds or modifies the application itself.
     """
-    snapshot = engine.get_latest_snapshot()
-    if snapshot is None:
-        print("No snapshot is available.")
-        return
-
-    monitoring_info = snapshot.get("monitoring", {})
-
-    print(f"{'Snapshot Timestamp':<22}: {engine.get_snapshot_timestamp()}")
-    print(f"{'Monitoring Status':<22}: {monitoring_info.get('status', 'Unknown')}")
-    print(
-        f"{'Total Collectors':<22}: "
-        f"{monitoring_info.get('total_collectors', 'Unknown')}"
-    )
-    print(
-        f"{'Successful Collectors':<22}: "
-        f"{monitoring_info.get('successful_collectors', 'Unknown')}"
-    )
-    print(
-        f"{'Failed Collectors':<22}: "
-        f"{monitoring_info.get('failed_collectors', 'Unknown')}"
-    )
+    uvicorn.run(fastapi_app, host=_API_HOST, port=_API_PORT)
 
 
 if __name__ == "__main__":

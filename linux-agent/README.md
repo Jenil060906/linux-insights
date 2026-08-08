@@ -161,6 +161,20 @@ Any value that can't be determined falls back to `"unknown"` rather than raising
 
 **How this prepares the project for FastAPI and Windows Dashboard integration.** Because the engine already exposes everything through one small, synchronous facade — `start()`, `stop()`, `is_running()`, `get_latest_snapshot()`, `get_snapshot_timestamp()` — and `get_latest_snapshot()` already returns a plain, deep-copied, JSON-serializable dictionary, adding a way to serve that data (e.g. a future FastAPI endpoint, or a Windows-based dashboard client polling for the latest reading) would only mean building a thin new layer on top of this facade. No changes would be required to `Monitor`, `Scheduler`, `SnapshotManager`, or the Configuration Manager to support that — they stay exactly as decoupled from any future transport or client as they are from each other today.
 
+## API Foundation
+
+`api/` implements the agent's FastAPI-based HTTP interface — `api/app.py` builds the application, `api/dependencies.py` provides access to shared agent state, and `api/routes/` + `api/schemas/` implement the endpoints and their response models. Full details (architecture, folder structure, endpoint reference) live in [`docs/api-foundation.md`](docs/api-foundation.md).
+
+**Why FastAPI was selected.** FastAPI is built on Pydantic, which the project already uses for structured, self-documenting response shapes (`HealthResponse`, `AgentResponse`) — every response model doubles as its own validation and its own OpenAPI schema, generated automatically rather than maintained by hand. Its dependency injection system (`Depends()`) also fits how the rest of this project is already built: routes declare exactly what they need (`Config`, `SnapshotManager`) as parameters, the same way `Scheduler` and `Monitor` declare their own collaborators through constructor injection, rather than reaching for globals.
+
+**API versioning strategy.** Every router is mounted under a shared `/api/v1` prefix, applied once in `api/app.py`'s `create_app()` at the point each router is included — never baked into an individual router's own path definitions. A future `/api/v2` could reuse the same routers (or a modified set) under a different prefix without editing any route file.
+
+**Current endpoints.** `GET /api/v1/health` — a liveness check with no dependencies, always reporting a fixed `"healthy"` status. `GET /api/v1/agent` — the agent's configured identity (`agent_id`, `hostname`, `scheduler_interval`) plus the platform string and status from its most recent monitoring cycle.
+
+**Dependency injection architecture.** `api/dependencies.py`'s `get_config` and `get_snapshot_manager` each read one attribute off `request.app.state` and return it as-is — neither constructs, owns, or caches anything, so `api/dependencies.py` holds no state of its own. `ConfigDependency`/`SnapshotManagerDependency` wrap them as `Annotated` aliases for routes to declare directly as parameter types. The real `Config` and `SnapshotManager` instances are attached to `app.state` once, by `main.py`, when the agent starts.
+
+**Relationship with the Snapshot Manager.** The API never constructs its own `SnapshotManager` — `GET /agent` reads from the exact same instance the `Scheduler` is updating on every monitoring cycle, via `SnapshotManagerDependency`. This means the API always reflects live monitoring data with no separate synchronization step: whatever `SnapshotManager` currently holds is whatever the API returns, and if no cycle has completed yet, the affected fields degrade gracefully (`platform: null`, `status: "unknown"`) rather than failing.
+
 ## Status
 
 Project skeleton only. No monitoring code has been written.
